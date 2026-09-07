@@ -21,8 +21,11 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
+import { existsSync } from "node:fs";
 
-process.loadEnvFile?.(".env.local");
+if (existsSync(".env.local")) {
+  process.loadEnvFile?.(".env.local");
+}
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) throw new Error("DATABASE_URL belum diisi");
