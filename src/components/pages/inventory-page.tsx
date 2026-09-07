@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, CircleAlert, ClipboardList, PackagePlus, Plus, ReceiptText, Send, Warehouse } from "lucide-react";
+import { CheckCircle2, CircleAlert, ClipboardCheck, ClipboardList, PackagePlus, Plus, ReceiptText, Send, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button, EmptyState, GhostButton, PageHeader, Panel, StatusBadge, TextArea, TextInput } from "@/components/ui/primitives";
@@ -73,6 +73,7 @@ export function InventoryPage() {
             { value: "po", label: "PO", icon: ReceiptText },
             { value: "gr", label: "GR", icon: PackagePlus },
             { value: "issue", label: "Issue", icon: Send },
+            { value: "opname", label: "Opname", icon: ClipboardCheck },
             { value: "ledger", label: "Ledger", icon: Warehouse },
           ].map(({ value, label, icon: Icon }) => (
             <Tabs.Trigger key={value} value={value} className={cn("inline-flex min-h-10 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted", "data-[state=active]:bg-red-700 data-[state=active]:text-white dark:data-[state=active]:bg-red-500 dark:data-[state=active]:text-zinc-950")}>
@@ -85,6 +86,7 @@ export function InventoryPage() {
         <Tabs.Content value="po"><PurchaseOrderTab /></Tabs.Content>
         <Tabs.Content value="gr"><GoodsReceiptTab /></Tabs.Content>
         <Tabs.Content value="issue"><InventoryIssueTab /></Tabs.Content>
+        <Tabs.Content value="opname"><StockOpnameTab /></Tabs.Content>
         <Tabs.Content value="ledger"><InventoryLedgerTab /></Tabs.Content>
       </Tabs.Root>
     </>
@@ -239,6 +241,81 @@ function InventoryIssueTab() {
         <Button disabled={create.isPending} onClick={() => create.mutate()}><Send className="mr-2 h-4 w-4" />Issue Material</Button>
       </FormGrid>
     </Panel>
+  );
+}
+
+function StockOpnameTab() {
+  const qc = useQueryClient();
+  const lookups = useLookups();
+  const rows = useQuery({ queryKey: ["stock-opnames"], queryFn: () => api<AnyRow[]>("/api/stock-opnames") });
+  const [form, setForm] = React.useState({
+    materialId: "",
+    warehouseId: "",
+    countedQty: "",
+    evidenceUrl: "",
+    reason: "",
+    countedAt: new Date().toISOString().slice(0, 10),
+  });
+  const create = useMutation({
+    mutationFn: () => api("/api/stock-opnames", { method: "POST", body: JSON.stringify(form) }),
+    onSuccess: () => {
+      toast.success("Stock opname submitted");
+      setForm({ materialId: "", warehouseId: "", countedQty: "", evidenceUrl: "", reason: "", countedAt: new Date().toISOString().slice(0, 10) });
+      qc.invalidateQueries({ queryKey: ["stock-opnames"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const decision = useMutation({
+    mutationFn: ({ row, next }: { row: AnyRow; next: string }) => api(`/api/stock-opnames/${row.id}/decision`, { method: "POST", body: JSON.stringify({ status: next, version: row.version, reason: next === "APPROVED" ? "Approved stock opname" : "Rejected stock opname" }) }),
+    onSuccess: () => {
+      toast.success("Keputusan stock opname tersimpan");
+      qc.invalidateQueries({ queryKey: ["stock-opnames"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const apply = useMutation({
+    mutationFn: (row: AnyRow) => api(`/api/stock-opnames/${row.id}/apply`, { method: "POST", body: JSON.stringify({ version: row.version, reason: "Apply stock opname adjustment" }) }),
+    onSuccess: () => {
+      toast.success("Adjustment stock opname applied");
+      qc.invalidateQueries({ queryKey: ["stock-opnames"] });
+      qc.invalidateQueries({ queryKey: ["inventory-ledger"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  const l = (lookups.data ?? {}) as AnyRow;
+  return (
+    <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
+      <Panel>
+        <h2 className="mb-4 font-semibold">Stock Opname</h2>
+        <FormGrid>
+          <SearchableSelect label="Material" value={form.materialId} onChange={(v) => setForm({ ...form, materialId: v ?? "" })} options={optionize(l.materials ?? [], (r) => r.nama, (r) => `${r.kode} · ${r.uom}`)} />
+          <SearchableSelect label="Warehouse" value={form.warehouseId} onChange={(v) => setForm({ ...form, warehouseId: v ?? "" })} options={optionize(l.warehouses ?? [], (r) => r.nama, (r) => r.kode)} />
+          <div className="grid grid-cols-2 gap-2">
+            <TextInput type="number" placeholder="Counted qty" value={form.countedQty} onChange={(e) => setForm({ ...form, countedQty: e.target.value })} />
+            <TextInput type="date" value={form.countedAt} onChange={(e) => setForm({ ...form, countedAt: e.target.value })} />
+          </div>
+          <TextInput placeholder="Evidence URL" value={form.evidenceUrl} onChange={(e) => setForm({ ...form, evidenceUrl: e.target.value })} />
+          <TextArea placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+          <Button disabled={create.isPending} onClick={() => create.mutate()}><ClipboardCheck className="mr-2 h-4 w-4" />Submit Opname</Button>
+        </FormGrid>
+      </Panel>
+      <Panel>{rows.isLoading ? <SkeletonRows /> : rows.error ? <ErrorBox message={(rows.error as Error).message} onRetry={() => rows.refetch()} /> : <DataTable rows={rows.data ?? []} columns={[
+        { key: "nomor", label: "Nomor" },
+        { key: "materialId", label: "Material", render: (r) => nameById(l.materials, r.materialId) },
+        { key: "warehouseId", label: "Warehouse", render: (r) => nameById(l.warehouses, r.warehouseId) },
+        { key: "systemQty", label: "System" },
+        { key: "countedQty", label: "Counted" },
+        { key: "differenceQty", label: "Diff" },
+        { key: "status", label: "Status", render: (r) => <StatusBadge tone={r.status === "APPLIED" ? "good" : r.status === "REJECTED" ? "bad" : r.status === "APPROVED" ? "warn" : "neutral"}>{r.status}</StatusBadge> },
+        { key: "aksi", label: "Aksi", render: (r) => (
+          <div className="flex flex-wrap gap-2">
+            <GhostButton disabled={r.status !== "SUBMITTED"} onClick={() => decision.mutate({ row: r, next: "APPROVED" })}>Approve</GhostButton>
+            <GhostButton disabled={r.status !== "SUBMITTED"} onClick={() => decision.mutate({ row: r, next: "REJECTED" })}>Reject</GhostButton>
+            <GhostButton disabled={r.status !== "APPROVED"} onClick={() => apply.mutate(r)}>Apply</GhostButton>
+          </div>
+        ) },
+      ]} />}</Panel>
+    </div>
   );
 }
 

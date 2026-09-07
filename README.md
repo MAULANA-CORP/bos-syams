@@ -73,7 +73,7 @@ Fase 2 aktif di `/pricing`: Quotation draft, minimum price, offered price, send,
 
 Fase 3 aktif di `/production-flow`: Production Handoff dengan discrepancy, QC Inspection dengan validasi `inspected = pass + reject`, dan Packing yang hanya boleh dibuat setelah QC `PASS`.
 
-Fase 4 aktif di `/inventory`: Procurement Request, Purchase Order, Goods Receipt yang menambah inventory ledger, material issue, dan hard block stok negatif. Stock opname tetap belum dibuka karena blocker B-11 belum diputus.
+Fase 4 aktif di `/inventory`: Procurement Request, Purchase Order, Goods Receipt yang menambah inventory ledger, material issue, hard block stok negatif, dan Stock Opname dengan evidence, approval, lalu apply adjustment ke ledger.
 
 Master data seperti size, garment type, color, location, carrier, supplier, material, payment term, dan process rate sengaja tidak diisi data karangan. Isi lewat database/menu Master Data setelah owner memberi daftar resmi.
 

@@ -35,7 +35,7 @@ const workflow = [
   {
     area: "Inventory / Purchasing",
     imageFlow: "Material planning, PR, PO, GR, update stok on hand.",
-    appNow: "Material Planning, PR, PO, GR, Inventory Ledger, dan hard block stok negatif aktif di Fase 4. Stock opname masih menunggu keputusan B-11.",
+    appNow: "Material Planning, PR, PO, GR, Inventory Ledger, hard block stok negatif, dan Stock Opname evidence/approval/apply aktif di Fase 4.",
     status: "Aktif",
   },
   {
@@ -177,7 +177,7 @@ const controls = [
 
 const nextPhases = [
   ["Customer Portal", "Buyer bisa login sendiri untuk katalog, order, status produksi, invoice, dan shipment."],
-  ["Stock Opname", "Proses opname dan adjustment besar masih menunggu keputusan B-11 serta aturan evidence approval."],
+  ["Inventory Costing+", "Valuasi moving average, actual HPP, dan costing variance masuk penguatan Finance/Costing berikutnya."],
   ["Production Execution+", "Detail operator per station, timer produksi, kapasitas mesin, dan progress via web/HP."],
   ["Quality Control+", "Evidence foto, recheck rework lengkap, dan dashboard defect per kategori."],
   ["Packing & Goods Ready+", "Label PDF, dokumen packing list, dan update stok finished goods warehouse."],

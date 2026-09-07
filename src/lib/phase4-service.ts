@@ -134,6 +134,100 @@ export async function listInventoryLedger() {
   return getPrisma().inventoryLedger.findMany({ orderBy: [{ createdAt: "desc" }] });
 }
 
+export async function listStockOpnames() {
+  return getPrisma().stockOpname.findMany({ orderBy: [{ updatedAt: "desc" }] });
+}
+
+export async function createStockOpname(input: AnyInput, actor: Actor, ipAddress?: string) {
+  await assertBusinessAuthority(actor, "INVENTORY", "CREATE");
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    await tx.material.findUniqueOrThrow({ where: { id: String(input.materialId) } });
+    await tx.warehouse.findUniqueOrThrow({ where: { id: String(input.warehouseId) } });
+    const systemQty = await currentBalance(tx, String(input.materialId), String(input.warehouseId));
+    const countedQty = Number(input.countedQty);
+    const row = await tx.stockOpname.create({
+      data: {
+        nomor: businessNumber("SO"),
+        materialId: String(input.materialId),
+        warehouseId: String(input.warehouseId),
+        systemQty,
+        countedQty,
+        differenceQty: countedQty - systemQty,
+        evidenceUrl: String(input.evidenceUrl),
+        reason: String(input.reason),
+        countedAt: toDate(input.countedAt as string | null | undefined) ?? new Date(),
+        countedById: actor.id,
+        status: "SUBMITTED",
+      } as never,
+    });
+    await catatAudit({ entitasType: "StockOpname", entitasId: row.id, aksi: "CREATE", newValue: row, reason: row.reason, actor, ipAddress }, tx);
+    return row;
+  });
+}
+
+export async function decideStockOpname(id: string, input: { status: string; version: number; reason: string }, actor: Actor, ipAddress?: string) {
+  await assertBusinessAuthority(actor, "INVENTORY", "APPROVE");
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.stockOpname.findUniqueOrThrow({ where: { id } });
+    assertOptimisticVersion(current.version, input.version);
+    if (current.status !== "SUBMITTED") throw new DomainError("Stock opname hanya bisa diputus saat SUBMITTED", 409, "stock_opname_not_submitted");
+    const row = await tx.stockOpname.update({
+      where: { id },
+      data: {
+        status: input.status as never,
+        approvedById: actor.id,
+        approvedAt: new Date(),
+        reason: input.reason,
+        version: { increment: 1 },
+      },
+    });
+    await catatAudit({ entitasType: "StockOpname", entitasId: id, aksi: "UPDATE", oldValue: current, newValue: row, reason: input.reason, actor, ipAddress }, tx);
+    return row;
+  });
+}
+
+export async function applyStockOpname(id: string, input: { version: number; reason?: string }, actor: Actor, ipAddress?: string) {
+  await assertBusinessAuthority(actor, "INVENTORY", "EXECUTE");
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.stockOpname.findUniqueOrThrow({ where: { id } });
+    assertOptimisticVersion(current.version, input.version);
+    if (current.status !== "APPROVED") throw new DomainError("Stock opname harus APPROVED sebelum apply adjustment", 409, "stock_opname_not_approved");
+    const balanceBefore = await currentBalance(tx, current.materialId, current.warehouseId);
+    const countedQty = Number(current.countedQty);
+    const diff = countedQty - balanceBefore;
+    const ledger = await tx.inventoryLedger.create({
+      data: {
+        materialId: current.materialId,
+        warehouseId: current.warehouseId,
+        movement: "ADJUSTMENT",
+        qtyIn: diff > 0 ? diff : 0,
+        qtyOut: diff < 0 ? Math.abs(diff) : 0,
+        balanceAfter: countedQty,
+        sourceType: "StockOpname",
+        sourceId: current.id,
+        actorId: actor.id,
+        notes: input.reason ?? current.reason,
+      } as never,
+    });
+    const row = await tx.stockOpname.update({
+      where: { id },
+      data: {
+        status: "APPLIED",
+        systemQty: balanceBefore,
+        differenceQty: diff,
+        appliedById: actor.id,
+        appliedAt: new Date(),
+        version: { increment: 1 },
+      },
+    });
+    await catatAudit({ entitasType: "StockOpname", entitasId: id, aksi: "UPDATE", oldValue: current, newValue: { row, ledger }, reason: input.reason ?? "Apply stock opname adjustment", actor, ipAddress }, tx);
+    return row;
+  });
+}
+
 export async function issueInventory(input: AnyInput, actor: Actor, ipAddress?: string) {
   await assertBusinessAuthority(actor, "INVENTORY", "EXECUTE");
   const prisma = getPrisma();

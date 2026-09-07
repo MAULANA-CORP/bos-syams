@@ -198,6 +198,26 @@ export const inventoryIssueSchema = z.object({
   notes: nullableString,
 });
 
+export const stockOpnameCreateSchema = z.object({
+  materialId: z.string().min(1),
+  warehouseId: z.string().min(1),
+  countedQty: z.coerce.number().nonnegative(),
+  evidenceUrl: z.string().trim().min(1),
+  reason: z.string().trim().min(1),
+  countedAt: dateString.optional().nullable(),
+});
+
+export const stockOpnameDecisionSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
+export const stockOpnameApplySchema = z.object({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
 export const taskCreateSchema = z.object({
   sourceEntitas: z.string().trim().min(1),
   sourceId: z.string().trim().min(1),

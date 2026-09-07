@@ -1,4 +1,4 @@
-// BOS SYAMS — schema Fase 1 (Pondasi + Core Backbone)
+// BOS SYAMS — schema Fase 1-4 (Core Backbone + Pricing + Production + Inventory)
 //
 // Setiap keputusan di file ini menunjuk ke QID pada dokumen
 // BOS_SYAMS_FINAL_JAWABAN_KLARIFIKASI_DEVELOPER (approved 3 Sep 2026)
@@ -208,6 +208,13 @@ enum MovementType {
   ADJUSTMENT
   RESERVE
   RELEASE
+}
+
+enum StockOpnameStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  APPLIED
 }
 
 enum HandoffStatus {
@@ -1091,6 +1098,32 @@ model InventoryLedger {
   @@index([materialId, createdAt])
   @@index([sourceType, sourceId])
   @@map("inventory_ledger")
+}
+
+model StockOpname {
+  id           String            @id @default(cuid())
+  nomor        String            @unique
+  warehouseId  String
+  materialId   String
+  systemQty    Decimal           @default(0) @db.Decimal(18, 4)
+  countedQty   Decimal           @default(0) @db.Decimal(18, 4)
+  differenceQty Decimal          @default(0) @db.Decimal(18, 4)
+  evidenceUrl  String
+  reason       String
+  status       StockOpnameStatus @default(SUBMITTED)
+  countedAt    DateTime          @default(now())
+  countedById  String?
+  approvedById String?
+  approvedAt   DateTime?
+  appliedById  String?
+  appliedAt    DateTime?
+  version      Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([warehouseId, status])
+  @@index([materialId, countedAt])
+  @@map("stock_opnames")
 }
 
 // ===========================================================================
