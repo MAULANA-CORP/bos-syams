@@ -81,6 +81,73 @@ export const releaseSchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+export const quotationCreateSchema = z.object({
+  buyerId: nullableString,
+  orderId: nullableString,
+  articleId: nullableString,
+  currency: z.string().trim().min(3).max(3).default("IDR"),
+  estimatedHpp: z.coerce.number().nonnegative().optional().nullable(),
+  markupPercent: z.coerce.number().nonnegative().optional().nullable(),
+  offeredPrice: z.coerce.number().nonnegative().optional().nullable(),
+  baseOfferedPrice: z.coerce.number().nonnegative().optional().nullable(),
+  validUntil: dateString.optional().nullable(),
+  notes: nullableString,
+});
+
+export const quotationStatusSchema = z.object({
+  status: z.enum(["SENT", "APPROVED", "REJECTED", "EXPIRED"]),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const productionHandoffCreateSchema = z.object({
+  batchId: nullableString,
+  fromProcess: nullableString,
+  toProcess: nullableString,
+  fromLocationId: nullableString,
+  toLocationId: nullableString,
+  qtySent: z.coerce.number().int().nonnegative(),
+  notes: nullableString,
+});
+
+export const productionHandoffReceiveSchema = z.object({
+  qtyReceived: z.coerce.number().int().nonnegative(),
+  version: z.number().int().min(0),
+  notes: nullableString,
+});
+
+export const qcInspectionCreateSchema = z.object({
+  batchId: nullableString,
+  articleId: nullableString,
+  sizeId: nullableString,
+  inspectedQty: z.coerce.number().int().nonnegative(),
+  passQty: z.coerce.number().int().nonnegative(),
+  rejectQty: z.coerce.number().int().nonnegative(),
+  rejectCategoryId: nullableString,
+  notes: nullableString,
+});
+
+export const qcDecisionSchema = z.object({
+  status: z.enum(["PASS", "REJECT", "REWORK"]),
+  version: z.number().int().min(0),
+  notes: nullableString,
+});
+
+export const packingJobCreateSchema = z.object({
+  batchId: nullableString,
+  articleId: nullableString,
+  qtyToPack: z.coerce.number().int().nonnegative(),
+  labelCode: nullableString,
+  notes: nullableString,
+});
+
+export const packingStatusSchema = z.object({
+  status: z.enum(["PACKED", "GOODS_READY"]),
+  packedQty: z.coerce.number().int().nonnegative(),
+  version: z.number().int().min(0),
+  notes: nullableString,
+});
+
 export const taskCreateSchema = z.object({
   sourceEntitas: z.string().trim().min(1),
   sourceId: z.string().trim().min(1),

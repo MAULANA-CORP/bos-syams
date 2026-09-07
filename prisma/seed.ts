@@ -8,7 +8,7 @@
  *   - Field policy (Q11.1)
  *   - Authority Matrix (Q10.3 — baris dibuat, threshold sengaja NULL)
  *   - System config placeholder untuk seluruh blocker terbuka
- *   - User demo untuk seluruh role internal Fase 1
+ *   - User demo untuk seluruh role internal Fase 1-3
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
@@ -47,8 +47,9 @@ type Scope =
   | "ALL_COMPANY" | "DEPARTMENT" | "TEAM" | "ASSIGNED" | "PRODUCTION"
   | "INVENTORY" | "FINANCE" | "PEOPLE" | "QUALITY" | "CUSTOMER_OWN_DATA" | "SYSTEM";
 
-const MODUL_FASE_1 = [
+const MODUL_BOS = [
   "BUYER", "ORDER", "ARTICLE", "BATCH",
+  "QUOTATION", "PRODUCTION", "QC", "PACKING",
   "MASTER_DATA", "TASK", "EXCEPTION", "AUDIT", "USER", "PERMISSION",
 ] as const;
 
@@ -56,7 +57,7 @@ interface AturanRole {
   role: RoleCode;
   scope: Scope;
   /** modul -> daftar aksi yang diizinkan */
-  akses: Partial<Record<(typeof MODUL_FASE_1)[number], Aksi[]>>;
+  akses: Partial<Record<(typeof MODUL_BOS)[number], Aksi[]>>;
 }
 
 const MATRIKS: AturanRole[] = [
@@ -66,6 +67,8 @@ const MATRIKS: AturanRole[] = [
     scope: "ALL_COMPANY",
     akses: {
       BUYER: ["VIEW"], ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
+      QUOTATION: ["VIEW", "APPROVE", "OVERRIDE"],
+      PRODUCTION: ["VIEW"], QC: ["VIEW"], PACKING: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW"], AUDIT: ["VIEW"],
       EXCEPTION: ["VIEW", "APPROVE", "OVERRIDE"],
     },
@@ -79,6 +82,7 @@ const MATRIKS: AturanRole[] = [
       BUYER: ["VIEW", "CREATE", "EDIT"],
       ORDER: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       ARTICLE: ["VIEW", "CREATE", "EDIT"],
+      QUOTATION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       BATCH: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
@@ -90,6 +94,7 @@ const MATRIKS: AturanRole[] = [
     akses: {
       BUYER: ["VIEW", "CREATE", "EDIT"],
       ORDER: ["VIEW"], ARTICLE: ["VIEW"],
+      QUOTATION: ["VIEW", "CREATE", "EDIT"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
     },
   },
@@ -101,6 +106,8 @@ const MATRIKS: AturanRole[] = [
     akses: {
       BUYER: ["VIEW"], ORDER: ["VIEW"], ARTICLE: ["VIEW"],
       BATCH: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      QC: ["VIEW"], PACKING: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -111,6 +118,7 @@ const MATRIKS: AturanRole[] = [
     akses: {
       ORDER: ["VIEW"], ARTICLE: ["VIEW"],
       BATCH: ["VIEW", "EXECUTE"],
+      PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       TASK: ["VIEW", "EDIT"],
     },
   },
@@ -119,6 +127,7 @@ const MATRIKS: AturanRole[] = [
     scope: "INVENTORY",
     akses: {
       ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
+      PRODUCTION: ["VIEW"], PACKING: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"], EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -130,6 +139,7 @@ const MATRIKS: AturanRole[] = [
     akses: {
       BUYER: ["VIEW", "EDIT"], ORDER: ["VIEW", "EDIT"], ARTICLE: ["VIEW"],
       BATCH: ["VIEW"],
+      QUOTATION: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE", "OVERRIDE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE", "APPROVE"],
@@ -146,6 +156,8 @@ const MATRIKS: AturanRole[] = [
     scope: "QUALITY",
     akses: {
       ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
+      PRODUCTION: ["VIEW"], QC: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      PACKING: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -386,7 +398,7 @@ const SEEDED_USERS: {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("Seed BOS Syams — Fase 1\n");
+  console.log("Seed BOS Syams — Fase 1-3\n");
 
   // --- Entity & Warehouse (Q0.2) ---
   const entity = await prisma.entity.upsert({
@@ -426,7 +438,7 @@ async function main() {
   // --- Permission matrix (sheet 07) ---
   let jumlahPermission = 0;
   for (const aturan of MATRIKS) {
-    for (const modul of MODUL_FASE_1) {
+    for (const modul of MODUL_BOS) {
       const aksiDiizinkan = aturan.akses[modul] ?? [];
       const semuaAksi: Aksi[] = ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE", "OVERRIDE"];
       for (const aksi of semuaAksi) {
@@ -493,7 +505,7 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
-  // --- User demo seluruh role internal ---
+  // --- User demo seluruh role internal Fase 1-3 ---
   for (const seedUser of SEEDED_USERS) {
     const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
     const user = await prisma.user.upsert({
@@ -516,7 +528,7 @@ async function main() {
       });
     }
   }
-  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal`);
+  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-3`);
 
   console.log("\nSelesai.");
   console.log("Login owner: owner / " + (process.env.SEED_OWNER_PASSWORD ? "(dari SEED_OWNER_PASSWORD)" : "owner123"));

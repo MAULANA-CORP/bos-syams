@@ -186,6 +186,98 @@ enum ConfigType {
   JSON
 }
 
+enum QuotationStatus {
+  DRAFT
+  SENT
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum ProcurementStatus {
+  REQUESTED
+  APPROVED
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+enum MovementType {
+  GR
+  ISSUE
+  ADJUSTMENT
+  RESERVE
+  RELEASE
+}
+
+enum HandoffStatus {
+  SENT
+  RECEIVED
+  DISCREPANCY
+}
+
+enum QcStatus {
+  PENDING
+  PASS
+  REJECT
+  REWORK
+}
+
+enum PackingStatus {
+  OPEN
+  PACKED
+  GOODS_READY
+}
+
+enum ShipmentStatus {
+  DRAFT
+  BLOCKED_BY_PAYMENT
+  READY_TO_SHIP
+  SHIPPED
+  DELIVERED
+  EXCEPTION_RELEASED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OUTSTANDING
+  VOID
+}
+
+enum PaymentStatus {
+  REPORTED
+  VERIFIED
+  REJECTED
+}
+
+enum PortalTicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum SampleStatus {
+  REQUESTED
+  SENT
+  APPROVED
+  REJECTED
+}
+
+enum MakloonStatus {
+  PLANNED
+  SENT
+  RECEIVED
+  CLOSED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
 // ===========================================================================
 // ORGANISASI — Q0.2
 // V1 memakai satu legal entity dan satu gudang, tapi ID wajib ada di schema
@@ -812,6 +904,395 @@ model RejectCategory {
   updatedAt DateTime @updatedAt
 
   @@map("reject_categories")
+}
+
+// ===========================================================================
+// FASE 2 — PRICING, HPP, QUOTATION
+// Nilai uang tetap Decimal. Jika config pricing belum lengkap, modul service
+// menandai record sebagai draft/blocked, bukan menghitung angka asumsi.
+// ===========================================================================
+
+model Quotation {
+  id             String          @id @default(cuid())
+  nomor          String          @unique
+  buyerId        String?
+  orderId        String?
+  articleId      String?
+  currency       String          @default("IDR")
+  estimatedHpp   Decimal?        @db.Decimal(18, 2)
+  markupPercent  Decimal?        @db.Decimal(5, 2)
+  minimumPrice   Decimal?        @db.Decimal(18, 2)
+  offeredPrice   Decimal?        @db.Decimal(18, 2)
+  baseOfferedPrice Decimal?       @db.Decimal(18, 2)
+  status         QuotationStatus @default(DRAFT)
+  validUntil     DateTime?
+  notes          String?
+  approvedByRole UserRoleCode?
+  version        Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([buyerId, status])
+  @@index([orderId])
+  @@map("quotations")
+}
+
+// ===========================================================================
+// FASE 3 — PRODUCTION HANDOFF, QC, REWORK, PACKING
+// Qty sent tidak dioverwrite; selisih menjadi discrepancy.
+// ===========================================================================
+
+model ProductionHandoff {
+  id             String        @id @default(cuid())
+  nomor          String        @unique
+  batchId        String?
+  fromProcess    ProcessCode?
+  toProcess      ProcessCode?
+  fromLocationId String?
+  toLocationId   String?
+  qtySent        Int           @default(0)
+  qtyReceived    Int?
+  discrepancyQty Int?
+  status         HandoffStatus @default(SENT)
+  sentById       String?
+  receivedById   String?
+  notes          String?
+  version        Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([batchId, status])
+  @@map("production_handoffs")
+}
+
+model QualityInspection {
+  id               String    @id @default(cuid())
+  nomor            String    @unique
+  batchId          String?
+  articleId        String?
+  sizeId           String?
+  inspectedQty     Int       @default(0)
+  passQty          Int       @default(0)
+  rejectQty        Int       @default(0)
+  rejectCategoryId String?
+  status           QcStatus  @default(PENDING)
+  inspectorId      String?
+  notes            String?
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([batchId, status])
+  @@index([articleId])
+  @@map("quality_inspections")
+}
+
+model PackingJob {
+  id           String        @id @default(cuid())
+  nomor        String        @unique
+  batchId      String?
+  articleId    String?
+  qtyToPack    Int           @default(0)
+  packedQty    Int           @default(0)
+  status       PackingStatus @default(OPEN)
+  labelCode    String?
+  packedById   String?
+  goodsReadyAt DateTime?
+  notes        String?
+  version      Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([batchId, status])
+  @@index([articleId])
+  @@map("packing_jobs")
+}
+
+// ===========================================================================
+// FASE 4 — INVENTORY LEDGER, PR -> PO -> GR
+// Pembayaran supplier tidak menambah stok. Stok hanya bertambah lewat GR.
+// ===========================================================================
+
+model ProcurementRequest {
+  id            String            @id @default(cuid())
+  nomor         String            @unique
+  articleId     String?
+  materialId    String?
+  qtyNeeded     Decimal?          @db.Decimal(18, 4)
+  uom           String?
+  neededBy      DateTime?
+  requesterId   String?
+  approverRole  UserRoleCode?
+  status        ProcurementStatus @default(REQUESTED)
+  reason        String?
+  version       Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([status, neededBy])
+  @@index([materialId])
+  @@map("procurement_requests")
+}
+
+model PurchaseOrder {
+  id                  String            @id @default(cuid())
+  nomor               String            @unique
+  procurementRequestId String?
+  supplierId          String?
+  currency            String            @default("IDR")
+  total               Decimal?          @db.Decimal(18, 2)
+  status              ProcurementStatus @default(ORDERED)
+  orderedAt           DateTime?
+  expectedAt          DateTime?
+  notes               String?
+  version             Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([supplierId, status])
+  @@map("purchase_orders")
+}
+
+model GoodsReceipt {
+  id              String            @id @default(cuid())
+  nomor           String            @unique
+  purchaseOrderId String?
+  materialId      String?
+  warehouseId     String?
+  qtyReceived     Decimal           @default(0) @db.Decimal(18, 4)
+  uom             String?
+  receivedAt      DateTime?
+  verifiedById    String?
+  status          ProcurementStatus @default(RECEIVED)
+  notes           String?
+  version         Int               @default(0)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([materialId, receivedAt])
+  @@index([warehouseId])
+  @@map("goods_receipts")
+}
+
+model InventoryLedger {
+  id          String       @id @default(cuid())
+  materialId  String?
+  warehouseId String?
+  movement    MovementType
+  qtyIn       Decimal      @default(0) @db.Decimal(18, 4)
+  qtyOut      Decimal      @default(0) @db.Decimal(18, 4)
+  balanceAfter Decimal?    @db.Decimal(18, 4)
+  sourceType  String?
+  sourceId    String?
+  actorId     String?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  @@index([materialId, createdAt])
+  @@index([sourceType, sourceId])
+  @@map("inventory_ledger")
+}
+
+// ===========================================================================
+// FASE 5 — INVOICE, PAYMENT, SHIPMENT GATE
+// Transfer claim tetap REPORTED sampai CFO memverifikasi.
+// ===========================================================================
+
+model Invoice {
+  id              String        @id @default(cuid())
+  nomor           String        @unique
+  orderId         String?
+  buyerId         String?
+  currency        String        @default("IDR")
+  amount          Decimal       @default(0) @db.Decimal(18, 2)
+  baseAmount      Decimal?      @db.Decimal(18, 2)
+  dueDate         DateTime?
+  issuedAt        DateTime?
+  status          InvoiceStatus @default(DRAFT)
+  collectionNotes String?
+  issuedById      String?
+  version         Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([orderId, status])
+  @@index([buyerId, dueDate])
+  @@map("invoices")
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  nomor        String        @unique
+  invoiceId    String?
+  currency     String        @default("IDR")
+  amount       Decimal       @default(0) @db.Decimal(18, 2)
+  reportedAt   DateTime?
+  verifiedAt   DateTime?
+  status       PaymentStatus @default(REPORTED)
+  reportedById String?
+  verifiedById String?
+  evidenceUrl  String?
+  notes        String?
+  version      Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([invoiceId, status])
+  @@map("payments")
+}
+
+model Shipment {
+  id                    String         @id @default(cuid())
+  nomor                 String         @unique
+  orderId               String?
+  carrierId             String?
+  packingJobId          String?
+  packedQty             Int            @default(0)
+  paymentGateStatus     String         @default("UNVERIFIED")
+  status                ShipmentStatus @default(DRAFT)
+  scheduledAt           DateTime?
+  shippedAt             DateTime?
+  deliveredAt           DateTime?
+  trackingNo            String?
+  releasedByExceptionId String?
+  notes                 String?
+  version               Int            @default(0)
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  @@index([orderId, status])
+  @@index([carrierId])
+  @@map("shipments")
+}
+
+// ===========================================================================
+// FASE 6 — CUSTOMER PORTAL
+// Portal account selalu terikat Buyer ID. Query portal wajib filter buyerId.
+// ===========================================================================
+
+model PortalAccount {
+  id             String     @id @default(cuid())
+  buyerId        String
+  buyerContactId String?
+  email          String     @unique
+  passwordHash   String?
+  portalRole     PortalRole @default(VIEWER)
+  isActive       Boolean    @default(true)
+  invitedAt      DateTime   @default(now())
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([buyerId, portalRole])
+  @@map("portal_accounts")
+}
+
+model PortalTicket {
+  id        String             @id @default(cuid())
+  nomor     String             @unique
+  buyerId   String?
+  orderId   String?
+  subject   String
+  message   String?
+  status    PortalTicketStatus @default(OPEN)
+  version   Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([buyerId, status])
+  @@map("portal_tickets")
+}
+
+// ===========================================================================
+// FASE 7 — CRM, SAMPLE, MAKLOON, CEO CONTROL TOWER, CHRO
+// ===========================================================================
+
+model CrmPipeline {
+  id           String   @id @default(cuid())
+  nomor        String   @unique
+  buyerId      String?
+  title        String
+  stage        String   @default("LEAD")
+  nextFollowUp DateTime?
+  ownerId      String?
+  notes        String?
+  version      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([buyerId, stage])
+  @@index([ownerId, nextFollowUp])
+  @@map("crm_pipelines")
+}
+
+model SampleApproval {
+  id        String       @id @default(cuid())
+  nomor     String       @unique
+  articleId String?
+  buyerId   String?
+  status    SampleStatus @default(REQUESTED)
+  sentAt    DateTime?
+  decidedAt DateTime?
+  notes     String?
+  version   Int          @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([articleId, status])
+  @@index([buyerId])
+  @@map("sample_approvals")
+}
+
+model MakloonJob {
+  id          String        @id @default(cuid())
+  nomor       String        @unique
+  batchId     String?
+  supplierId  String?
+  processId   String?
+  unitPrice   Decimal?      @db.Decimal(18, 2)
+  total        Decimal?      @db.Decimal(18, 2)
+  qtySent     Int           @default(0)
+  qtyReceived Int           @default(0)
+  dueDate     DateTime?
+  status      MakloonStatus @default(PLANNED)
+  notes       String?
+  version     Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([batchId, status])
+  @@index([supplierId])
+  @@map("makloon_jobs")
+}
+
+model Employee {
+  id          String         @id @default(cuid())
+  userId      String?
+  nik         String?        @unique
+  nama        String
+  departemen  String?
+  roleTitle   String?
+  salaryLevel String?
+  status      EmployeeStatus @default(ACTIVE)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([departemen, status])
+  @@map("employees")
+}
+
+model ManpowerPlan {
+  id            String   @id @default(cuid())
+  tanggal       DateTime
+  departemen    String
+  plannedPeople Int      @default(0)
+  actualPeople  Int?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tanggal, departemen])
+  @@map("manpower_plans")
 }
 
 // ===========================================================================

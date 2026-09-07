@@ -23,14 +23,14 @@ const workflow = [
   {
     area: "CMO / Commercial",
     imageFlow: "Inquiry/order, breakdown article, harga, payment terms, konfirmasi order.",
-    appNow: "Order, article, size breakdown, buyer ownership, SPK Release oleh CMO sudah aktif. Konfirmasi order masih ditahan saat pricing config belum lengkap.",
+    appNow: "Order, article, size breakdown, buyer ownership, SPK Release oleh CMO, dan Quotation gate sudah aktif. Confirm Order dibuka setelah quotation approved.",
     status: "Aktif",
   },
   {
     area: "COO / Production",
     imageFlow: "Production planning, material requirement, penjadwalan, kapasitas, eksekusi, QC.",
-    appNow: "Batch planning dan Batch Release oleh Production Controller sudah aktif. Eksekusi proses dan QC detail masuk fase lanjutan.",
-    status: "Sebagian",
+    appNow: "Batch planning, Batch Release, Production Handoff, discrepancy, dan QC Inspection sudah aktif di Fase 3.",
+    status: "Aktif",
   },
   {
     area: "Inventory / Purchasing",
@@ -41,8 +41,8 @@ const workflow = [
   {
     area: "Packing & Warehouse",
     imageFlow: "Packing berdasarkan QC PASS, goods ready, update warehouse stock.",
-    appNow: "Process catalog sudah punya PACKING. Modul packing/goods ready belum aktif.",
-    status: "Berikutnya",
+    appNow: "Packing Job dan Goods Ready aktif. Sistem menolak packing kalau belum ada QC PASS.",
+    status: "Aktif",
   },
   {
     area: "Shipment / Logistics",
@@ -178,9 +178,9 @@ const controls = [
 const nextPhases = [
   ["Customer Portal", "Buyer bisa login sendiri untuk katalog, order, status produksi, invoice, dan shipment."],
   ["Material Planning", "MRP, Purchase Request, Purchase Order, Goods Receipt, dan on hand stock."],
-  ["Production Execution", "Tracking WIP per location/proses, handoff antar proses, dan progress via web/HP."],
-  ["Quality Control", "QC per article/size, PASS/REJECT, rework cycle, dan rule hanya QC PASS boleh packing."],
-  ["Packing & Goods Ready", "Label, dokumentasi, goods ready, dan update stok warehouse."],
+  ["Production Execution+", "Detail operator per station, timer produksi, kapasitas mesin, dan progress via web/HP."],
+  ["Quality Control+", "Evidence foto, recheck rework lengkap, dan dashboard defect per kategori."],
+  ["Packing & Goods Ready+", "Label PDF, dokumen packing list, dan update stok finished goods warehouse."],
   ["Shipment", "Shipment document, gate status pembayaran, dan notifikasi status ke customer."],
   ["Finance", "Invoice, payment, AR/AP, ledger, actual HPP, variance, dan financial report."],
 ];
@@ -221,10 +221,10 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Workflow dari gambar</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Fase 1 sudah menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Modul portal, inventory transaksi, packing, shipment, invoice, dan costing detail masuk fase berikutnya.
+                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-3 sudah menambah pricing/quotation, production handoff, QC, dan packing. Modul portal, inventory transaksi, shipment, invoice, dan costing detail masih fase berikutnya.
                 </p>
               </div>
-              <StatusBadge tone="warn">Fase 1 backbone aktif</StatusBadge>
+              <StatusBadge tone="good">Fase 1-3 aktif bertahap</StatusBadge>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">

@@ -105,11 +105,27 @@ export async function confirmOrder(id: string, input: { version: number }, actor
     const order = await tx.order.findUniqueOrThrow({ where: { id }, include: { articles: true } });
     assertOptimisticVersion(order.version, input.version);
     if (order.articles.length === 0) throw new DomainError("Order belum punya Article", 409, "order_without_article");
-    throw new DomainError(
-      "Gate pricing/CFO approval aktif. Modul pricing ada di Fase 2, jadi Confirm Order sengaja diblokir.",
-      409,
-      "pricing_gate_blocked",
-    );
+    const orderQuotation = await tx.quotation.count({ where: { orderId: id, status: "APPROVED" } });
+    const articlesWithQuotation = await tx.quotation.findMany({
+      where: { articleId: { in: order.articles.map((article) => article.id) }, status: "APPROVED" },
+      select: { articleId: true },
+    });
+    const approvedArticleIds = new Set(articlesWithQuotation.map((quotation) => quotation.articleId).filter(Boolean));
+    const everyArticleApproved = order.articles.every((article) => approvedArticleIds.has(article.id));
+    if (orderQuotation === 0 && !everyArticleApproved) {
+      throw new DomainError(
+        "Gate pricing aktif. Order baru bisa Confirm setelah quotation approved oleh CFO/CEO.",
+        409,
+        "pricing_gate_blocked",
+      );
+    }
+
+    const updated = await tx.order.update({
+      where: { id },
+      data: { status: "CONFIRMED", version: { increment: 1 } },
+    });
+    await catatAudit({ entitasType: "Order", entitasId: id, aksi: "UPDATE", oldValue: order, newValue: updated, reason: "Confirm Order setelah quotation approved", actor, ipAddress }, tx);
+    return updated;
   }).catch(async (error) => {
     if (error instanceof DomainError && error.code === "pricing_gate_blocked") {
       await catatAudit({ entitasType: "Order", entitasId: id, aksi: "UPDATE", reason: error.message, oldValue: null, newValue: { attemptedStatus: "CONFIRMED" }, actor, ipAddress });

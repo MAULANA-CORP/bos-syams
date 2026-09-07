@@ -1,6 +1,6 @@
 # BOS Syams
 
-Business Operating System untuk Syams Garment Manufacturer. Implementasi ini menuntaskan Fase 1 PRD: pondasi auth, RBAC, audit trail, typed exception, task engine, core backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, master data, shell aplikasi, dan dokumen deploy.
+Business Operating System untuk Syams Garment Manufacturer. Implementasi ini menuntaskan Fase 1 PRD dan mulai menjalankan Fase 2-3: pondasi auth, RBAC, audit trail, typed exception, task engine, core backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, master data, Pricing & Quotation, Production Handoff, QC Inspection, Packing, shell aplikasi, dan dokumen deploy.
 
 ## Stack
 
@@ -67,7 +67,11 @@ Panduan workflow, urutan input, dan penjelasan role ada di menu `/guide`.
 
 ## Yang Sengaja Diblokir
 
-Confirm Order masih mengembalikan blocker `pricing_gate_blocked`. Ini sesuai PRD Fase 1: gate pricing/CFO approval aktif, tetapi modul pricing baru dikerjakan di Fase 2. Sistem mencatat percobaan confirm ke audit trail.
+Confirm Order memakai gate pricing/CFO approval. Order baru bisa `CONFIRMED` setelah ada Quotation `APPROVED` untuk order atau seluruh article terkait. Kalau pricing config/HPP belum lengkap, sistem tetap mengembalikan blocker `pricing_gate_blocked` atau `pricing_config_incomplete` dan mencatat percobaan confirm ke audit trail.
+
+Fase 2 aktif di `/pricing`: Quotation draft, minimum price, offered price, send, approve CFO/CEO, dan guard harga di bawah minimum.
+
+Fase 3 aktif di `/production-flow`: Production Handoff dengan discrepancy, QC Inspection dengan validasi `inspected = pass + reject`, dan Packing yang hanya boleh dibuat setelah QC `PASS`.
 
 Master data seperti size, garment type, color, location, carrier, supplier, material, payment term, dan process rate sengaja tidak diisi data karangan. Isi lewat database/menu Master Data setelah owner memberi daftar resmi.
 
