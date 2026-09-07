@@ -71,6 +71,7 @@ const inputSteps = [
   "CMO mengelola CRM pipeline dan Sample Approval; Production/Warehouse mengelola Makloon jika proses keluar pabrik dibutuhkan.",
   "CHRO mengisi Employee dan Manpower Plan, lalu Owner melihat ringkasannya di CEO Control Tower.",
   "Owner/CEO membuka Dashboard, Audit, dan Exception untuk melihat ringkasan, risiko, dan keputusan yang perlu approval, termasuk shipment outstanding.",
+  "CEO, CMO, dan COO dapat mengirim Request Revision ke developer; lampirkan screenshot, tulis checklist verifikasi, lalu pindahkan ke Done setelah perbaikan dicek.",
 ];
 
 const roles = [
@@ -79,28 +80,28 @@ const roles = [
     password: "owner123",
     role: "CEO",
     scope: "ALL_COMPANY",
-    akses: "Lihat seluruh operasi, CEO Control Tower, approval exception owner, override tertentu, dashboard CEO.",
+    akses: "Lihat seluruh operasi, CEO Control Tower, Request Revision, approval exception owner, override tertentu, dashboard CEO.",
   },
   {
     username: "cmo",
     password: "cmo123",
     role: "CMO_MANAGER",
     scope: "DEPARTMENT",
-    akses: "Buyer, order, article, quotation, CRM, sample, portal account, shipment view/create, SPK Release, task commercial, exception commercial.",
+    akses: "Buyer, order, article, quotation, CRM, sample, portal account, Request Revision, shipment view/create, SPK Release, task commercial, exception commercial.",
   },
   {
     username: "cmo_support",
     password: "support123",
     role: "CMO_SUPPORT",
     scope: "TEAM",
-    akses: "Bantu input buyer, CRM, sample, lihat order/article/invoice/shipment, buat dan update task commercial.",
+    akses: "Bantu input buyer, CRM, sample, Request Revision, lihat order/article/invoice/shipment, buat dan update task commercial.",
   },
   {
     username: "coo",
     password: "coo123",
     role: "PRODUCTION_CONTROLLER",
     scope: "PRODUCTION",
-    akses: "Planning batch, edit batch, Batch Release, makloon job, manpower view, exception produksi.",
+    akses: "Planning batch, edit batch, Batch Release, Makloon job, Request Revision, manpower view, exception produksi.",
   },
   {
     username: "production",

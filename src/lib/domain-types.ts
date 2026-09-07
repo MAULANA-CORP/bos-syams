@@ -19,6 +19,7 @@ export const MODULES = [
   "EMPLOYEE",
   "MANPOWER",
   "CONTROL_TOWER",
+  "REVISION",
   "MASTER_DATA",
   "TASK",
   "EXCEPTION",

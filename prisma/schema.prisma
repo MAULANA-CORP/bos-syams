@@ -285,6 +285,11 @@ enum EmployeeStatus {
   INACTIVE
 }
 
+enum RevisionStatus {
+  OPEN
+  DONE
+}
+
 // ===========================================================================
 // ORGANISASI — Q0.2
 // V1 memakai satu legal entity dan satu gudang, tapi ID wajib ada di schema
@@ -359,6 +364,7 @@ model User {
   batchesReleased   ProductionBatch[] @relation("BatchReleaser")
   exceptionsRaised  ExceptionCase[]   @relation("ExceptionRequester")
   exceptionsDecided ExceptionCase[]   @relation("ExceptionDecider")
+  revisionRequests  RevisionRequest[]  @relation("RevisionRequester")
 
   @@index([isActive])
   @@map("users")
@@ -1326,6 +1332,49 @@ model ManpowerPlan {
 
   @@index([tanggal, departemen])
   @@map("manpower_plans")
+}
+
+// ===========================================================================
+// REQUEST REVISION — masukan owner dan tim operasional ke developer
+// ===========================================================================
+
+model RevisionRequest {
+  id            String             @id @default(cuid())
+  nomor         String             @unique
+  judul         String
+  modul         String
+  deskripsi     String
+  prioritas     String             @default("MEDIUM")
+  status        RevisionStatus     @default(OPEN)
+  imageData     String?
+  imageName     String?
+  imageMime     String?
+  requestedById String
+  version       Int                @default(0)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  requestedBy   User               @relation("RevisionRequester", fields: [requestedById], references: [id])
+  checklist     RevisionChecklist[]
+
+  @@index([status, prioritas])
+  @@index([requestedById, status])
+  @@map("revision_requests")
+}
+
+model RevisionChecklist {
+  id               String         @id @default(cuid())
+  revisionRequestId String
+  label            String
+  isDone           Boolean        @default(false)
+  sortOrder        Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  revisionRequest  RevisionRequest @relation(fields: [revisionRequestId], references: [id])
+
+  @@index([revisionRequestId, isDone])
+  @@map("revision_checklists")
 }
 
 // ===========================================================================

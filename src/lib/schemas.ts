@@ -372,6 +372,24 @@ export const manpowerPlanCreateSchema = z.object({
   notes: nullableString,
 });
 
+export const revisionCreateSchema = z.object({
+  judul: z.string().trim().min(3).max(160),
+  modul: z.string().trim().min(1).max(80),
+  deskripsi: z.string().trim().min(5).max(6000),
+  prioritas: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).default("MEDIUM"),
+  checklist: z.array(z.string().trim().min(1).max(240)).min(1).max(20),
+  imageData: z.string().regex(/^data:image\/(png|jpeg|jpg|webp);base64,/i).max(14000000).optional().nullable(),
+  imageName: nullableString,
+  imageMime: z.enum(["image/png", "image/jpeg", "image/jpg", "image/webp"]).optional().nullable(),
+});
+
+export const revisionUpdateSchema = z.object({
+  status: z.enum(["OPEN", "DONE"]).optional(),
+  version: z.number().int().min(0),
+  checklist: z.array(z.object({ id: z.string().min(1), isDone: z.boolean() })).max(20).optional(),
+  reason: z.string().trim().min(1).optional(),
+});
+
 export const taskCreateSchema = z.object({
   sourceEntitas: z.string().trim().min(1),
   sourceId: z.string().trim().min(1),

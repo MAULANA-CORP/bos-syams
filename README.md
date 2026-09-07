@@ -81,6 +81,8 @@ Fase 6 aktif di `/portal-admin`, `/portal/login`, dan `/portal`: akun portal inv
 
 Fase 7 aktif di `/crm`, `/samples`, `/makloon`, `/people`, dan `/control-tower`: CMO Pipeline/CRM, Sample Approval internal, Makloon sent/received/closed, Employee & Manpower CHRO, dan CEO Control Tower.
 
+Request Revision aktif di `/request-revision` untuk CEO/Owner, CMO Manager, CMO Support, dan COO/Production Controller. Request mendukung checklist verifikasi, lampiran gambar, paste screenshot dari clipboard, dan filter `Belum diperbaiki` / `Done`.
+
 Master data seperti size, garment type, color, location, carrier, supplier, material, payment term, dan process rate sengaja tidak diisi data karangan. Isi lewat database/menu Master Data setelah owner memberi daftar resmi.
 
 ## Verifikasi
