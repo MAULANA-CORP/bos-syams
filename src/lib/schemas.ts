@@ -218,6 +218,60 @@ export const stockOpnameApplySchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+export const invoiceCreateSchema = z.object({
+  orderId: nullableString,
+  buyerId: nullableString,
+  currency: z.string().trim().min(3).max(3).default("IDR"),
+  amount: z.coerce.number().positive(),
+  baseAmount: z.coerce.number().nonnegative().optional().nullable(),
+  dueDate: dateString,
+  issuedAt: dateString.optional().nullable(),
+  collectionNotes: nullableString,
+});
+
+export const invoiceVoidSchema = z.object({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
+export const paymentReportSchema = z.object({
+  invoiceId: z.string().min(1),
+  currency: z.string().trim().min(3).max(3).default("IDR"),
+  amount: z.coerce.number().positive(),
+  reportedAt: dateString.optional().nullable(),
+  evidenceUrl: z.string().trim().min(1),
+  notes: nullableString,
+});
+
+export const paymentDecisionSchema = z.object({
+  status: z.enum(["VERIFIED", "REJECTED"]),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
+export const shipmentCreateSchema = z.object({
+  orderId: z.string().min(1),
+  carrierId: nullableString,
+  packingJobId: z.string().min(1),
+  packedQty: z.coerce.number().int().positive(),
+  scheduledAt: dateString.optional().nullable(),
+  trackingNo: nullableString,
+  notes: nullableString,
+});
+
+export const shipmentStatusSchema = z.object({
+  status: z.enum(["SHIPPED", "DELIVERED"]),
+  version: z.number().int().min(0),
+  trackingNo: nullableString,
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const shipmentExceptionReleaseSchema = z.object({
+  exceptionId: z.string().min(1),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
 export const taskCreateSchema = z.object({
   sourceEntitas: z.string().trim().min(1),
   sourceId: z.string().trim().min(1),

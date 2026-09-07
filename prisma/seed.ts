@@ -8,7 +8,7 @@
  *   - Field policy (Q11.1)
  *   - Authority Matrix (Q10.3 — baris dibuat, threshold sengaja NULL)
  *   - System config placeholder untuk seluruh blocker terbuka
- *   - User demo untuk seluruh role internal Fase 1-4
+ *   - User demo untuk seluruh role internal Fase 1-5
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
@@ -50,7 +50,7 @@ type Scope =
 const MODUL_BOS = [
   "BUYER", "ORDER", "ARTICLE", "BATCH",
   "QUOTATION", "PRODUCTION", "QC", "PACKING",
-  "PROCUREMENT", "INVENTORY",
+  "PROCUREMENT", "INVENTORY", "INVOICE", "PAYMENT", "SHIPMENT",
   "MASTER_DATA", "TASK", "EXCEPTION", "AUDIT", "USER", "PERMISSION",
 ] as const;
 
@@ -71,6 +71,7 @@ const MATRIKS: AturanRole[] = [
       QUOTATION: ["VIEW", "APPROVE", "OVERRIDE"],
       PRODUCTION: ["VIEW"], QC: ["VIEW"], PACKING: ["VIEW"],
       PROCUREMENT: ["VIEW", "APPROVE", "OVERRIDE"], INVENTORY: ["VIEW", "APPROVE", "OVERRIDE"],
+      INVOICE: ["VIEW", "APPROVE", "OVERRIDE"], PAYMENT: ["VIEW", "APPROVE"], SHIPMENT: ["VIEW", "APPROVE", "OVERRIDE"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW"], AUDIT: ["VIEW"],
       EXCEPTION: ["VIEW", "APPROVE", "OVERRIDE"],
     },
@@ -86,6 +87,7 @@ const MATRIKS: AturanRole[] = [
       ARTICLE: ["VIEW", "CREATE", "EDIT"],
       QUOTATION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       BATCH: ["VIEW"], PROCUREMENT: ["VIEW"], INVENTORY: ["VIEW"],
+      INVOICE: ["VIEW"], PAYMENT: ["VIEW"], SHIPMENT: ["VIEW", "CREATE"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -97,6 +99,7 @@ const MATRIKS: AturanRole[] = [
       BUYER: ["VIEW", "CREATE", "EDIT"],
       ORDER: ["VIEW"], ARTICLE: ["VIEW"],
       QUOTATION: ["VIEW", "CREATE", "EDIT"],
+      INVOICE: ["VIEW"], SHIPMENT: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
     },
   },
@@ -111,6 +114,7 @@ const MATRIKS: AturanRole[] = [
       PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       QC: ["VIEW"], PACKING: ["VIEW"],
       PROCUREMENT: ["VIEW", "CREATE"], INVENTORY: ["VIEW"],
+      SHIPMENT: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -123,6 +127,7 @@ const MATRIKS: AturanRole[] = [
       BATCH: ["VIEW", "EXECUTE"],
       PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       INVENTORY: ["VIEW"],
+      SHIPMENT: ["VIEW"],
       TASK: ["VIEW", "EDIT"],
     },
   },
@@ -134,12 +139,13 @@ const MATRIKS: AturanRole[] = [
       PRODUCTION: ["VIEW"], PACKING: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       PROCUREMENT: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
       INVENTORY: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      INVOICE: ["VIEW"], PAYMENT: ["VIEW"], SHIPMENT: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"], EXCEPTION: ["VIEW", "CREATE"],
     },
   },
   {
-    // Financial truth (FIN-002). Modul finansial menyusul di Fase 5.
+    // Financial truth (FIN-002). Fase 5 mengaktifkan invoice, payment, dan shipment gate.
     role: "CFO",
     scope: "FINANCE",
     akses: {
@@ -147,6 +153,9 @@ const MATRIKS: AturanRole[] = [
       BATCH: ["VIEW"],
       QUOTATION: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE", "OVERRIDE"],
       PROCUREMENT: ["VIEW", "APPROVE"], INVENTORY: ["VIEW", "APPROVE"],
+      INVOICE: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
+      PAYMENT: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
+      SHIPMENT: ["VIEW", "APPROVE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE", "APPROVE"],
@@ -165,6 +174,7 @@ const MATRIKS: AturanRole[] = [
       ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
       PRODUCTION: ["VIEW"], QC: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       PACKING: ["VIEW"],
+      SHIPMENT: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -405,7 +415,7 @@ const SEEDED_USERS: {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("Seed BOS Syams — Fase 1-4\n");
+  console.log("Seed BOS Syams — Fase 1-5\n");
 
   // --- Entity & Warehouse (Q0.2) ---
   const entity = await prisma.entity.upsert({
@@ -512,7 +522,7 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
-  // --- User demo seluruh role internal Fase 1-4 ---
+  // --- User demo seluruh role internal Fase 1-5 ---
   for (const seedUser of SEEDED_USERS) {
     const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
     const user = await prisma.user.upsert({
@@ -535,7 +545,7 @@ async function main() {
       });
     }
   }
-  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-4`);
+  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-5`);
 
   console.log("\nSelesai.");
   console.log("Login owner: owner / " + (process.env.SEED_OWNER_PASSWORD ? "(dari SEED_OWNER_PASSWORD)" : "owner123"));

@@ -47,14 +47,14 @@ const workflow = [
   {
     area: "Shipment / Logistics",
     imageFlow: "Shipment document, gate payment status, update status customer.",
-    appNow: "Process catalog sudah punya SHIPMENT dan exception shipment outstanding. Dokumen shipment belum aktif.",
-    status: "Berikutnya",
+    appNow: "Dokumen shipment, payment gate, status shipped/delivered, dan CEO exception release untuk outstanding payment sudah aktif di Fase 5.",
+    status: "Aktif",
   },
   {
     area: "Finance / CFO",
     imageFlow: "Invoice, payment, AR/AP, ledger, costing dan reporting.",
-    appNow: "Role CFO, field masking HPP/cost, pricing gate, authority exception sudah aktif. Invoice/payment/costing detail belum aktif.",
-    status: "Sebagian",
+    appNow: "Invoice, payment claim, verifikasi CFO, collection notes, dan status AR untuk shipment gate sudah aktif. Costing detail/ledger akuntansi penuh menyusul fase berikutnya.",
+    status: "Aktif",
   },
 ];
 
@@ -65,7 +65,9 @@ const inputSteps = [
   "CMO membuat Order, mengisi article dan size breakdown, lalu lanjut SPK Release saat data wajib sudah lengkap.",
   "Production Controller membuat Batch dari article yang sudah siap produksi dan melakukan Batch Release.",
   "Tim produksi, warehouse, finance, QC, dan people memakai Task dan Exception untuk koordinasi lintas divisi.",
-  "Owner/CEO membuka Dashboard, Audit, dan Exception untuk melihat ringkasan, risiko, dan keputusan yang perlu approval.",
+  "Warehouse membuat Shipment setelah goods ready. Sistem otomatis menahan shipment kalau invoice order belum paid.",
+  "CFO membuat invoice dan memverifikasi payment. Claim transfer masih REPORTED sampai CFO menekan Verify.",
+  "Owner/CEO membuka Dashboard, Audit, dan Exception untuk melihat ringkasan, risiko, dan keputusan yang perlu approval, termasuk shipment outstanding.",
 ];
 
 const roles = [
@@ -81,14 +83,14 @@ const roles = [
     password: "cmo123",
     role: "CMO_MANAGER",
     scope: "DEPARTMENT",
-    akses: "Buyer, order, article, SPK Release, task commercial, exception commercial.",
+    akses: "Buyer, order, article, quotation, shipment view/create, SPK Release, task commercial, exception commercial.",
   },
   {
     username: "cmo_support",
     password: "support123",
     role: "CMO_SUPPORT",
     scope: "TEAM",
-    akses: "Bantu input buyer, lihat order/article, buat dan update task commercial.",
+    akses: "Bantu input buyer, lihat order/article/invoice/shipment, buat dan update task commercial.",
   },
   {
     username: "coo",
@@ -109,7 +111,7 @@ const roles = [
     password: "wh123",
     role: "WAREHOUSE_PURCHASING",
     scope: "INVENTORY",
-    akses: "Master data inventory, task warehouse, exception material/purchasing.",
+    akses: "Master data inventory, PR/PO/GR/ledger/opname, shipment create/execute, task warehouse, exception material/purchasing.",
   },
   {
     username: "qc",
@@ -123,7 +125,7 @@ const roles = [
     password: "cfo123",
     role: "CFO",
     scope: "FINANCE",
-    akses: "Field sensitif HPP/cost, buyer/order finance fields, exception pricing/finance.",
+    akses: "Invoice, payment claim, payment verify/reject, collection notes, field sensitif HPP/cost, buyer/order finance fields, exception pricing/finance.",
   },
   {
     username: "chro",
@@ -181,8 +183,7 @@ const nextPhases = [
   ["Production Execution+", "Detail operator per station, timer produksi, kapasitas mesin, dan progress via web/HP."],
   ["Quality Control+", "Evidence foto, recheck rework lengkap, dan dashboard defect per kategori."],
   ["Packing & Goods Ready+", "Label PDF, dokumen packing list, dan update stok finished goods warehouse."],
-  ["Shipment", "Shipment document, gate status pembayaran, dan notifikasi status ke customer."],
-  ["Finance", "Invoice, payment, AR/AP, ledger, actual HPP, variance, dan financial report."],
+  ["Finance+", "AR/AP ledger akuntansi penuh, actual HPP, variance, budget actual, dan financial report."],
 ];
 
 function StatusPill({ status }: { status: string }) {
@@ -221,10 +222,10 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Workflow dari gambar</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-4 sudah menambah pricing/quotation, production handoff, QC, packing, dan inventory PR to PO to GR. Modul portal, shipment, invoice, dan costing detail masih fase berikutnya.
+                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-5 sudah menambah pricing/quotation, production handoff, QC, packing, inventory PR to PO to GR, stock opname, invoice, payment, dan shipment gate. Modul portal buyer dan costing detail masih fase berikutnya.
                 </p>
               </div>
-              <StatusBadge tone="good">Fase 1-4 aktif bertahap</StatusBadge>
+              <StatusBadge tone="good">Fase 1-5 aktif bertahap</StatusBadge>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">

@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async () => {
   const prisma = getPrisma();
-  const [entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders] = await Promise.all([
+  const [entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments] = await Promise.all([
     prisma.entity.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.warehouse.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.buyer.findMany({ orderBy: { nama: "asc" } }),
@@ -17,7 +17,7 @@ export const GET = withAuth(async () => {
     prisma.location.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.paymentTerm.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.article.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, kode: true, nama: true, qty: true } }),
-    prisma.order.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, buyer: { select: { nama: true } } } }),
+    prisma.order.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, buyerId: true, buyer: { select: { nama: true } } } }),
     prisma.productionBatch.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, plannedQty: true, article: { select: { nama: true } } } }),
     prisma.processCatalog.findMany({ where: { isActive: true }, orderBy: { urutan: "asc" } }),
     prisma.rejectCategory.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
@@ -27,7 +27,10 @@ export const GET = withAuth(async () => {
     prisma.supplier.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.procurementRequest.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, materialId: true, qtyNeeded: true, uom: true } }),
     prisma.purchaseOrder.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, procurementRequestId: true, supplierId: true } }),
+    prisma.carrier.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
+    prisma.invoice.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, orderId: true, buyerId: true, amount: true, currency: true } }),
+    prisma.shipment.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, orderId: true } }),
   ]);
 
-  return ok({ entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders });
+  return ok({ entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments });
 });
