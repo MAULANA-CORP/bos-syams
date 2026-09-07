@@ -11,3 +11,4 @@ src/generated
 coverage
 pnpm-lock.yaml
 pnpm-workspace.yaml
+.local-postgres/
