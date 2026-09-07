@@ -18,10 +18,18 @@ export function created<T>(data: T) {
 }
 
 export function fail(error: unknown) {
-  if (error instanceof DomainError) {
+  if (
+    error instanceof DomainError ||
+    (error &&
+      typeof error === "object" &&
+      "status" in error &&
+      "code" in error &&
+      typeof (error as { status?: unknown }).status === "number")
+  ) {
+    const domainError = error as DomainError;
     return NextResponse.json(
-      { error: error.message, type: error.code, details: error.details ?? null },
-      { status: error.status },
+      { error: domainError.message, type: domainError.code, details: domainError.details ?? null },
+      { status: domainError.status },
     );
   }
 
@@ -66,7 +74,7 @@ export function withAuth(
         throw new DomainError("Belum login", 401, "auth_required");
       }
       const actor = await getCurrentActor(session.userId);
-      return handler({ req, actor }, context);
+      return await handler({ req, actor }, context);
     } catch (error) {
       return fail(error);
     }

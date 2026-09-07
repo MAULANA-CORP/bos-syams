@@ -9,7 +9,10 @@ export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message = json?.error ?? `Request gagal (${res.status})`;
-    throw new Error(message);
+    const error = new Error(message) as Error & { status?: number; type?: string };
+    error.status = res.status;
+    error.type = json?.type;
+    throw error;
   }
   return json.data as T;
 }

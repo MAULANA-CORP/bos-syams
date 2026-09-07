@@ -58,18 +58,36 @@ function DataTable({ rows, columns }: { rows: AnyRow[]; columns: { key: string; 
 }
 
 export function TodayPage() {
-  const orders = useQuery({ queryKey: ["orders"], queryFn: () => api<AnyRow[]>("/api/orders") });
-  const tasks = useQuery({ queryKey: ["tasks"], queryFn: () => api<AnyRow[]>("/api/tasks") });
-  const exceptions = useQuery({ queryKey: ["exceptions"], queryFn: () => api<AnyRow[]>("/api/exceptions") });
-  const batches = useQuery({ queryKey: ["batches"], queryFn: () => api<AnyRow[]>("/api/batches") });
-  const loading = orders.isLoading || tasks.isLoading || exceptions.isLoading || batches.isLoading;
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api<{ roles: string[] }>("/api/auth/me") });
+  const isSystemAdminOnly = me.data?.roles.length === 1 && me.data.roles[0] === "SYSTEM_ADMIN";
+  const businessEnabled = Boolean(me.data) && !isSystemAdminOnly;
+  const orders = useQuery({ queryKey: ["orders"], queryFn: () => api<AnyRow[]>("/api/orders"), enabled: businessEnabled });
+  const tasks = useQuery({ queryKey: ["tasks"], queryFn: () => api<AnyRow[]>("/api/tasks"), enabled: businessEnabled });
+  const exceptions = useQuery({ queryKey: ["exceptions"], queryFn: () => api<AnyRow[]>("/api/exceptions"), enabled: businessEnabled });
+  const batches = useQuery({ queryKey: ["batches"], queryFn: () => api<AnyRow[]>("/api/batches"), enabled: businessEnabled });
+  const loading = me.isLoading || orders.isLoading || tasks.isLoading || exceptions.isLoading || batches.isLoading;
   const error = orders.error || tasks.error || exceptions.error || batches.error;
 
   return (
     <>
       <PageHeader title="TODAY" subtitle="Aksi yang perlu dikerjakan hari ini. Dashboard analisis dipisah supaya layar ini tetap operasional." />
       {error && <ErrorBox message={(error as Error).message} onRetry={() => { orders.refetch(); tasks.refetch(); exceptions.refetch(); batches.refetch(); }} />}
-      {loading ? <SkeletonRows /> : (
+      {loading ? <SkeletonRows /> : isSystemAdminOnly ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Panel>
+            <p className="text-sm text-muted">Role aktif</p>
+            <p className="mt-2 text-xl font-semibold">System Admin</p>
+          </Panel>
+          <Panel className="lg:col-span-2">
+            <h2 className="mb-2 font-semibold">Area kerja teknis</h2>
+            <p className="text-sm text-muted">System Admin mengelola user, permission, dan master data. Aksi bisnis seperti Order, Batch Release, dan Exception approval tetap ditolak sesuai SEC-001.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <a className="rounded-md border border-border px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800" href="/admin">Buka Admin</a>
+              <a className="rounded-md border border-border px-3 py-2 text-sm hover:bg-zinc-100 dark:hover:bg-zinc-800" href="/master-data">Buka Master Data</a>
+            </div>
+          </Panel>
+        </div>
+      ) : (
         <div className="grid gap-4 lg:grid-cols-4">
           <Metric label="Order draft" value={orders.data?.filter((o) => o.status === "DRAFT").length ?? 0} />
           <Metric label="Task open" value={tasks.data?.filter((t) => ["OPEN", "IN_PROGRESS", "BLOCKED", "OVERDUE"].includes(t.status)).length ?? 0} />
