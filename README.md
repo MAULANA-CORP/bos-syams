@@ -49,10 +49,21 @@ npm run db:seed
 npm run dev
 ```
 
-Login awal setelah seed:
+Login demo setelah seed:
 
-- Username: `admin`
-- Password: `admin123` atau nilai `SEED_ADMIN_PASSWORD`
+- `owner` / `owner123` - CEO / Owner
+- `cmo` / `cmo123` - CMO Manager
+- `cmo_support` / `support123` - CMO Support
+- `coo` / `coo123` - Production Controller
+- `production` / `prod123` - Production User
+- `warehouse` / `wh123` - Warehouse / Purchasing
+- `qc` / `qc123` - Quality Control
+- `cfo` / `cfo123` - Finance / CFO
+- `chro` / `chro123` - People / CHRO
+- `admin` / `admin123` - System Admin, atau nilai `SEED_ADMIN_PASSWORD`
+- `lutfi` / `lutfi123` - contoh user multi-role CMO + Warehouse
+
+Panduan workflow, urutan input, dan penjelasan role ada di menu `/guide`.
 
 ## Yang Sengaja Diblokir
 

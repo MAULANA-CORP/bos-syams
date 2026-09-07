@@ -8,7 +8,7 @@
  *   - Field policy (Q11.1)
  *   - Authority Matrix (Q10.3 — baris dibuat, threshold sengaja NULL)
  *   - System config placeholder untuk seluruh blocker terbuka
- *   - Satu user System Admin awal
+ *   - User demo untuk seluruh role internal Fase 1
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
@@ -291,6 +291,98 @@ const CONFIG: { key: string; tipe: string; deskripsi: string; qidRef: string; va
   },
 ];
 
+const SEEDED_USERS: {
+  username: string;
+  nama: string;
+  departemen: string;
+  passwordEnv?: string;
+  defaultPassword: string;
+  roles: { role: RoleCode; scope: Scope }[];
+}[] = [
+  {
+    username: "owner",
+    nama: "Owner / CEO Syams",
+    departemen: "Owner",
+    passwordEnv: "SEED_OWNER_PASSWORD",
+    defaultPassword: "owner123",
+    roles: [{ role: "CEO", scope: "ALL_COMPANY" }],
+  },
+  {
+    username: "cmo",
+    nama: "CMO Manager",
+    departemen: "Commercial",
+    defaultPassword: "cmo123",
+    roles: [{ role: "CMO_MANAGER", scope: "DEPARTMENT" }],
+  },
+  {
+    username: "cmo_support",
+    nama: "CMO Support",
+    departemen: "Commercial",
+    defaultPassword: "support123",
+    roles: [{ role: "CMO_SUPPORT", scope: "TEAM" }],
+  },
+  {
+    username: "coo",
+    nama: "COO / Production Controller",
+    departemen: "Production",
+    defaultPassword: "coo123",
+    roles: [{ role: "PRODUCTION_CONTROLLER", scope: "PRODUCTION" }],
+  },
+  {
+    username: "production",
+    nama: "Production User",
+    departemen: "Production",
+    defaultPassword: "prod123",
+    roles: [{ role: "PRODUCTION_USER", scope: "ASSIGNED" }],
+  },
+  {
+    username: "warehouse",
+    nama: "Inventory / Purchasing",
+    departemen: "Inventory",
+    defaultPassword: "wh123",
+    roles: [{ role: "WAREHOUSE_PURCHASING", scope: "INVENTORY" }],
+  },
+  {
+    username: "cfo",
+    nama: "Finance / CFO",
+    departemen: "Finance",
+    defaultPassword: "cfo123",
+    roles: [{ role: "CFO", scope: "FINANCE" }],
+  },
+  {
+    username: "chro",
+    nama: "CHRO",
+    departemen: "People",
+    defaultPassword: "chro123",
+    roles: [{ role: "CHRO", scope: "PEOPLE" }],
+  },
+  {
+    username: "qc",
+    nama: "Quality Control",
+    departemen: "Quality",
+    defaultPassword: "qc123",
+    roles: [{ role: "QC", scope: "QUALITY" }],
+  },
+  {
+    username: "admin",
+    nama: "System Admin",
+    departemen: "IT",
+    passwordEnv: "SEED_ADMIN_PASSWORD",
+    defaultPassword: "admin123",
+    roles: [{ role: "SYSTEM_ADMIN", scope: "SYSTEM" }],
+  },
+  {
+    username: "lutfi",
+    nama: "Lutfi Multi Role",
+    departemen: "Commercial / Inventory",
+    defaultPassword: "lutfi123",
+    roles: [
+      { role: "CMO_MANAGER", scope: "DEPARTMENT" },
+      { role: "WAREHOUSE_PURCHASING", scope: "INVENTORY" },
+    ],
+  },
+];
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -401,28 +493,35 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
-  // --- User System Admin awal ---
-  const password = process.env.SEED_ADMIN_PASSWORD || "admin123";
-  const admin = await prisma.user.upsert({
-    where: { username: "admin" },
-    update: {},
-    create: {
-      nama: "System Admin",
-      username: "admin",
-      passwordHash: await bcrypt.hash(password, 10),
-      departemen: "IT",
-      mustChangePassword: true,
-    },
-  });
-  await prisma.userRole.upsert({
-    where: { userId_role: { userId: admin.id, role: "SYSTEM_ADMIN" } },
-    update: {},
-    create: { userId: admin.id, role: "SYSTEM_ADMIN", scope: "SYSTEM" },
-  });
-  console.log("  User admin siap");
+  // --- User demo seluruh role internal ---
+  for (const seedUser of SEEDED_USERS) {
+    const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
+    const user = await prisma.user.upsert({
+      where: { username: seedUser.username },
+      update: { nama: seedUser.nama, departemen: seedUser.departemen },
+      create: {
+        nama: seedUser.nama,
+        username: seedUser.username,
+        passwordHash: await bcrypt.hash(password, 10),
+        departemen: seedUser.departemen,
+        mustChangePassword: true,
+      },
+    });
+
+    for (const role of seedUser.roles) {
+      await prisma.userRole.upsert({
+        where: { userId_role: { userId: user.id, role: role.role } },
+        update: { scope: role.scope },
+        create: { userId: user.id, role: role.role, scope: role.scope },
+      });
+    }
+  }
+  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal`);
 
   console.log("\nSelesai.");
-  console.log("Login: admin / " + (process.env.SEED_ADMIN_PASSWORD ? "(dari SEED_ADMIN_PASSWORD)" : "admin123"));
+  console.log("Login owner: owner / " + (process.env.SEED_OWNER_PASSWORD ? "(dari SEED_OWNER_PASSWORD)" : "owner123"));
+  console.log("Login admin: admin / " + (process.env.SEED_ADMIN_PASSWORD ? "(dari SEED_ADMIN_PASSWORD)" : "admin123"));
+  console.log("Daftar login lengkap ada di menu Panduan > Role & Login.");
   console.log("Ganti password setelah login pertama.\n");
   console.log("Master data sengaja kosong: size, garment type, warna, lokasi,");
   console.log("carrier, supplier, material, reject category, payment term, process rate.");

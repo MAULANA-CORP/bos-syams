@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Boxes, ClipboardList, Database, Factory, Home, LogOut, Shield, ShoppingBag, Siren, Users } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardList, Database, Factory, Home, LogOut, Shield, ShoppingBag, Siren, Users } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/client-api";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/today", label: "TODAY", icon: Home },
+  { href: "/guide", label: "Panduan", icon: BookOpen },
   { href: "/buyers", label: "Buyer", icon: Users },
   { href: "/orders", label: "Order", icon: ShoppingBag },
   { href: "/batches", label: "Batch", icon: Factory },
