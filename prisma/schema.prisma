@@ -1,0 +1,835 @@
+// BOS SYAMS — schema Fase 1 (Pondasi + Core Backbone)
+//
+// Setiap keputusan di file ini menunjuk ke QID pada dokumen
+// BOS_SYAMS_FINAL_JAWABAN_KLARIFIKASI_DEVELOPER (approved 3 Sep 2026)
+// atau ke Rule ID pada 04_BUSINESS_RULES.
+//
+// Aturan yang mengikat:
+//   - Tidak ada hard delete untuk data transaksi (DATA-001)
+//   - Uang selalu Decimal(18,2), tidak pernah Float
+//   - Waktu disimpan UTC, ditampilkan WIB (Q11.7)
+//   - Nilai TBD dibiarkan NULL, tidak pernah diisi asumsi
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ===========================================================================
+// ENUM
+// ===========================================================================
+
+/// Sheet 07_ROLE_PERMISSION. SYSTEM_ADMIN sengaja tidak punya authority bisnis (SEC-001).
+enum UserRoleCode {
+  CEO
+  CMO_MANAGER
+  CMO_SUPPORT
+  PRODUCTION_CONTROLLER
+  PRODUCTION_USER
+  WAREHOUSE_PURCHASING
+  CFO
+  CHRO
+  QC
+  SYSTEM_ADMIN
+}
+
+/// Q2.6 — portal role, dipakai Fase 6. Didefinisikan sekarang supaya enum stabil.
+enum PortalRole {
+  APPROVER
+  FINANCE
+  SHIPPING
+  VIEWER
+}
+
+/// Grand Design bab 15 — enam aksi terpisah.
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  APPROVE
+  EXECUTE
+  OVERRIDE
+}
+
+enum PermissionScope {
+  ALL_COMPANY
+  DEPARTMENT
+  TEAM
+  ASSIGNED
+  PRODUCTION
+  INVENTORY
+  FINANCE
+  PEOPLE
+  QUALITY
+  CUSTOMER_OWN_DATA
+  SYSTEM
+}
+
+/// Q2.5 — HOLD masih boleh quotation/follow-up, Production Release dapat diblokir.
+enum BuyerStatus {
+  PROSPECT
+  ACTIVE
+  HOLD
+  BLACKLIST
+}
+
+/// Q1.2 — Repeat bukan Order Type, melainkan flag pada Order.
+enum OrderType {
+  SAMPLE
+  PRODUCTION
+  SAMPLE_PRODUCTION
+}
+
+/// SPK_RELEASED = authority event CMO (Q5.1). Batch Release milik COO, ada di BatchStatus.
+enum OrderStatus {
+  DRAFT
+  CONFIRMED
+  SPK_RELEASED
+  IN_PRODUCTION
+  PARTIALLY_SHIPPED
+  SHIPPED
+  DELIVERED
+  CLOSED
+  CANCELLED
+}
+
+enum BatchStatus {
+  PLANNED
+  RELEASED
+  IN_PROCESS
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+/// Q10.6 — status minimum task engine.
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  DONE
+  CANCELLED
+  OVERDUE
+}
+
+/// Q10.2 — sembilan tipe exception. Tidak ada generic OVERRIDE (Q11.2).
+enum ExceptionType {
+  SHIPMENT_OUTSTANDING
+  PRICE_BELOW_MINIMUM
+  NEW_BUYER_CONTRACT
+  MAJOR_INVENTORY_ADJUSTMENT
+  CUSTOMER_RISK_COMPENSATION
+  CRITICAL_PEOPLE_ISSUE
+  CROSS_DEPT_DEADLOCK
+  INVESTMENT_EXPANSION
+  MAJOR_CASH_PURCHASE
+}
+
+enum ExceptionStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+/// DATA-001 — VOID/REVERSE/CORRECT menggantikan delete.
+enum AuditAction {
+  CREATE
+  UPDATE
+  VOID
+  REVERSE
+  CORRECT
+  LOGIN
+  LOGOUT
+  LOGIN_FAILED
+  EXPORT
+  PERMISSION_CHANGE
+}
+
+/// Q1.4 — process catalog minimal. Operator tidak boleh menambah sendiri.
+enum ProcessCode {
+  CUTTING
+  SORTING
+  PRINTING
+  EMBROIDERY
+  SEWING
+  ACCESSORIES
+  QC
+  PACKING
+  SHIPMENT
+}
+
+/// B-09 — Location adalah master tersendiri, bukan sinonim Process.
+/// MAKLOON diperlukan karena Q10.1 memasukkan WIP makloon ke PCS IN PROGRESS.
+enum LocationType {
+  INTERNAL
+  MAKLOON
+  WAREHOUSE
+}
+
+/// B-02 — dasar perhitungan tarif proses. NULL berarti CFO belum mengunci.
+enum RateBasis {
+  PER_PCS
+  PER_MINUTE
+}
+
+enum ConfigType {
+  STRING
+  NUMBER
+  BOOLEAN
+  ENUM
+  JSON
+}
+
+// ===========================================================================
+// ORGANISASI — Q0.2
+// V1 memakai satu legal entity dan satu gudang, tapi ID wajib ada di schema
+// supaya ekspansi tidak memerlukan redesign.
+// ===========================================================================
+
+model Entity {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  alamat    String?
+  npwp      String?
+  telepon   String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  warehouses Warehouse[]
+  orders     Order[]
+
+  @@map("entities")
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  entityId  String
+  kode      String   @unique
+  nama      String
+  alamat    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id])
+
+  @@index([entityId])
+  @@map("warehouses")
+}
+
+// ===========================================================================
+// IDENTITAS & AKSES — Q0.4, Q10.3, Q11.1
+// ===========================================================================
+
+/// Q0.4 — setiap transaksi kritis dilakukan individu bernama.
+/// Shared account dilarang. pinHash hanya mempercepat login di tablet bersama;
+/// actor tetap teridentifikasi sebagai orang, bukan stasiun.
+model User {
+  id                 String    @id @default(cuid())
+  nama               String
+  username           String    @unique
+  passwordHash       String?
+  /// PIN login cepat shop-floor. Di-hash sama seperti password.
+  pinHash            String?
+  email              String?   @unique
+  /// Disiapkan agar Google OAuth bisa ditambah tanpa migrasi ulang.
+  googleSub          String?   @unique
+  fotoUrl            String?
+  departemen         String?
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  lastLoginAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  roles             UserRole[]
+  auditTrails       AuditTrail[]
+  tasksAssigned     Task[]            @relation("TaskAssignee")
+  buyersOwned       Buyer[]           @relation("BuyerCmoOwner")
+  ordersPic         Order[]           @relation("OrderCmoPic")
+  ordersSpkReleased Order[]           @relation("OrderSpkReleaser")
+  batchesReleased   ProductionBatch[] @relation("BatchReleaser")
+  exceptionsRaised  ExceptionCase[]   @relation("ExceptionRequester")
+  exceptionsDecided ExceptionCase[]   @relation("ExceptionDecider")
+
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Multi-role per user. Lutfi memegang makloon pricing dan international shipping
+/// sekaligus, jadi satu kolom role tidak cukup.
+model UserRole {
+  id        String          @id @default(cuid())
+  userId    String
+  role      UserRoleCode
+  scope     PermissionScope
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, role])
+  @@index([role])
+  @@map("user_roles")
+}
+
+/// Q10.3 — permission disimpan di tabel, bukan hardcoded di kode,
+/// supaya authority matrix bisa dikonfigurasi tanpa deploy ulang.
+model Permission {
+  id        String           @id @default(cuid())
+  role      UserRoleCode
+  modul     String
+  aksi      PermissionAction
+  scope     PermissionScope
+  allowed   Boolean          @default(false)
+  updatedAt DateTime         @updatedAt
+
+  @@unique([role, modul, aksi])
+  @@index([role])
+  @@map("permissions")
+}
+
+/// Q11.1 — masking wajib di level API, bukan sekadar menyembunyikan menu.
+/// Contoh isi: entitas "Article", field "estimatedHpp", allowedRoles [CFO, CEO].
+model FieldPolicy {
+  id           String         @id @default(cuid())
+  entitas      String
+  field        String
+  allowedRoles UserRoleCode[]
+  catatan      String?
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([entitas, field])
+  @@map("field_policies")
+}
+
+/// Q10.3 / TBD-02 — batasNominal sengaja nullable.
+/// Selama NULL, kode tidak boleh mengarang angka. Keputusan di-route ke
+/// approver yang terdaftar dan sistem menandai konfigurasi belum lengkap.
+model AuthorityMatrix {
+  id           String        @id @default(cuid())
+  decisionType ExceptionType
+  batasNominal Decimal?      @db.Decimal(18, 2)
+  currency     String        @default("IDR")
+  approverRole UserRoleCode
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([decisionType, approverRole])
+  @@map("authority_matrix")
+}
+
+// ===========================================================================
+// AUDIT — DATA-001, Q11.3
+// ===========================================================================
+
+/// Tidak ada endpoint delete untuk tabel ini. Retensi diatur lewat SystemConfig,
+/// tidak di-hardcode (Q11.3).
+model AuditTrail {
+  id          String        @id @default(cuid())
+  entitasType String
+  entitasId   String
+  aksi        AuditAction
+  oldValue    Json?
+  newValue    Json?
+  reason      String?
+  actorId     String
+  actorRole   UserRoleCode?
+  ipAddress   String?
+  createdAt   DateTime      @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([entitasType, entitasId])
+  @@index([createdAt])
+  @@index([actorId])
+  @@map("audit_trails")
+}
+
+// ===========================================================================
+// TASK ENGINE — Q10.6
+// Menutup task tidak menyelesaikan state bisnis. Yang menyelesaikan adalah
+// business action-nya. Task hanya penanda pekerjaan.
+// ===========================================================================
+
+model Task {
+  id            String        @id @default(cuid())
+  sourceEntitas String
+  sourceId      String
+  tipe          String
+  judul         String
+  deskripsi     String?
+  assigneeId    String?
+  assigneeRole  UserRoleCode?
+  due           DateTime?
+  prioritas     Int           @default(3)
+  status        TaskStatus    @default(OPEN)
+  closedAt      DateTime?
+  version       Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  assignee User? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([assigneeId, status])
+  @@index([assigneeRole, status])
+  @@index([status, due])
+  @@index([sourceEntitas, sourceId])
+  @@map("tasks")
+}
+
+// ===========================================================================
+// TYPED EXCEPTION — Q10.2, Q11.2
+// Tidak ada generic override. Setiap exception punya tipe dan authority sendiri.
+// ===========================================================================
+
+model ExceptionCase {
+  id                String          @id @default(cuid())
+  nomor             String          @unique
+  tipe              ExceptionType
+  sourceModul       String
+  referensiId       String?
+  masalah           String
+  dampak            String
+  rekomendasi       String?
+  requesterId       String
+  decisionOwnerRole UserRoleCode
+  keputusan         String?
+  alasan            String?
+  /// Wajib terisi untuk SHIPMENT_OUTSTANDING, MAJOR_INVENTORY_ADJUSTMENT,
+  /// dan koreksi finansial (Q11.2). Divalidasi di lib/exception.ts.
+  evidenceUrls      String[]
+  status            ExceptionStatus @default(DRAFT)
+  decidedById       String?
+  decidedAt         DateTime?
+  version           Int             @default(0)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  requester User  @relation("ExceptionRequester", fields: [requesterId], references: [id])
+  decidedBy User? @relation("ExceptionDecider", fields: [decidedById], references: [id])
+
+  @@index([tipe, status])
+  @@index([status])
+  @@map("exception_cases")
+}
+
+// ===========================================================================
+// BUYER
+// ===========================================================================
+
+model Buyer {
+  id              String      @id @default(cuid())
+  kode            String      @unique
+  nama            String
+  company         String?
+  country         String?
+  defaultShipping String?
+  paymentTermId   String?
+  cmoOwnerId      String?
+  status          BuyerStatus @default(PROSPECT)
+  /// Q2.5 — alasan HOLD menentukan apakah Production Release ikut diblokir.
+  holdReason      String?
+  version         Int         @default(0)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  cmoOwner    User?          @relation("BuyerCmoOwner", fields: [cmoOwnerId], references: [id])
+  paymentTerm PaymentTerm?   @relation(fields: [paymentTermId], references: [id])
+  contacts    BuyerContact[]
+  orders      Order[]
+
+  @@index([status])
+  @@index([cmoOwnerId])
+  @@map("buyers")
+}
+
+/// Q2.6 — multi-contact per buyer. Portal user Fase 6 akan menunjuk ke sini.
+model BuyerContact {
+  id        String   @id @default(cuid())
+  buyerId   String
+  nama      String
+  email     String?
+  telepon   String?
+  jabatan   String?
+  isPrimary Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  buyer Buyer @relation(fields: [buyerId], references: [id])
+
+  @@index([buyerId])
+  @@map("buyer_contacts")
+}
+
+// ===========================================================================
+// ORDER -> ARTICLE -> SIZE -> BATCH
+// Q0.3 currency-aware sejak V1. Q1.1 nomor dokumen terpisah dari primary key.
+// ===========================================================================
+
+model Order {
+  id                  String      @id @default(cuid())
+  /// Nomor bisnis untuk ditampilkan. Immutable, sama seperti primary key (Q1.1).
+  nomor               String      @unique
+  entityId            String
+  buyerId             String
+  quotationId         String?
+  tipe                OrderType
+  tanggalOrder        DateTime
+  deadline            DateTime?
+  currency            String      @default("IDR")
+  fxRate              Decimal?    @db.Decimal(18, 6)
+  fxRateDate          DateTime?
+  fxSource            String?
+  commercialValue     Decimal?    @db.Decimal(18, 2)
+  /// Nilai dalam base currency IDR (Q0.3).
+  baseCommercialValue Decimal?    @db.Decimal(18, 2)
+  paymentTermId       String?
+  cmoPicId            String?
+  status              OrderStatus @default(DRAFT)
+  /// Q1.2 — repeat adalah flag, bukan Order Type.
+  isRepeat            Boolean     @default(false)
+  sourceOrderId       String?
+  /// Q5.1 — authority event pertama, milik CMO.
+  spkReleasedAt       DateTime?
+  spkReleasedById     String?
+  cancelledAt         DateTime?
+  cancelReason        String?
+  version             Int         @default(0)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  entity         Entity       @relation(fields: [entityId], references: [id])
+  buyer          Buyer        @relation(fields: [buyerId], references: [id])
+  cmoPic         User?        @relation("OrderCmoPic", fields: [cmoPicId], references: [id])
+  spkReleasedBy  User?        @relation("OrderSpkReleaser", fields: [spkReleasedById], references: [id])
+  paymentTerm    PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+  sourceOrder    Order?       @relation("OrderRepeat", fields: [sourceOrderId], references: [id])
+  repeatOrders   Order[]      @relation("OrderRepeat")
+  articles       Article[]
+
+  @@index([buyerId, status])
+  @@index([status, deadline])
+  @@index([entityId])
+  @@map("orders")
+}
+
+model Article {
+  id             String    @id @default(cuid())
+  kode           String    @unique
+  orderId        String
+  nama           String
+  garmentTypeId  String?
+  colorId        String?
+  mockupVersion  String?
+  qty            Int
+  sampleRequired Boolean   @default(false)
+  deadline       DateTime?
+  /// Q2.7 — skala 1..5. Perubahan setelah SPK Release wajib reason + audit.
+  businessPriority Int     @default(3)
+  /// Article.health TIDAK disimpan sebagai kolom. Q10.7 menyebut health sebagai
+  /// derived aggregate dari blocker aktual. Kolom tersimpan akan basi dan
+  /// mulai diperlakukan sebagai kebenaran. Dihitung di lib/article-health.ts.
+  version        Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  order       Order             @relation(fields: [orderId], references: [id])
+  garmentType GarmentType?      @relation(fields: [garmentTypeId], references: [id])
+  color       Color?            @relation(fields: [colorId], references: [id])
+  sizes       SizeBreakdown[]
+  batches     ProductionBatch[]
+
+  @@index([orderId])
+  @@index([garmentTypeId])
+  @@map("articles")
+}
+
+/// Jumlah qty seluruh baris wajib sama dengan Article.qty.
+/// Divalidasi di lib/order.ts, bukan hanya di form.
+model SizeBreakdown {
+  id        String   @id @default(cuid())
+  articleId String
+  sizeId    String
+  qty       Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  article Article @relation(fields: [articleId], references: [id])
+  size    Size    @relation(fields: [sizeId], references: [id])
+
+  @@unique([articleId, sizeId])
+  @@index([articleId])
+  @@map("size_breakdowns")
+}
+
+/// Q5.3 — split menghasilkan child batch. History parent tidak pernah ditimpa.
+/// Q5.1 — Batch Release adalah authority event kedua, milik COO.
+model ProductionBatch {
+  id            String      @id @default(cuid())
+  nomor         String      @unique
+  articleId     String
+  parentBatchId String?
+  plannedQty    Int
+  releasedQty   Int         @default(0)
+  currentQty    Int         @default(0)
+  locationId    String?
+  status        BatchStatus @default(PLANNED)
+  releasedAt    DateTime?
+  releasedById  String?
+  version       Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  article      Article           @relation(fields: [articleId], references: [id])
+  parentBatch  ProductionBatch?  @relation("BatchSplit", fields: [parentBatchId], references: [id])
+  childBatches ProductionBatch[] @relation("BatchSplit")
+  location     Location?         @relation(fields: [locationId], references: [id])
+  releasedBy   User?             @relation("BatchReleaser", fields: [releasedById], references: [id])
+
+  @@index([articleId, status])
+  @@index([locationId])
+  @@map("production_batches")
+}
+
+// ===========================================================================
+// MASTER DATA — Q1.3, Q1.4, Q1.5, Q1.7
+// Catalog terstruktur dan admin-controlled. Transaksi tidak boleh free text.
+// ===========================================================================
+
+model GarmentType {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sizeSets     SizeSet[]
+  articles     Article[]
+  processRates ProcessRate[]
+
+  @@map("garment_types")
+}
+
+/// Q1.3 — size set dapat dikaitkan dengan garment type.
+model SizeSet {
+  id            String   @id @default(cuid())
+  kode          String   @unique
+  nama          String
+  garmentTypeId String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  garmentType GarmentType? @relation(fields: [garmentTypeId], references: [id])
+  sizes       Size[]
+
+  @@index([garmentTypeId])
+  @@map("size_sets")
+}
+
+model Size {
+  id        String   @id @default(cuid())
+  sizeSetId String
+  kode      String
+  urutan    Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  sizeSet    SizeSet         @relation(fields: [sizeSetId], references: [id])
+  breakdowns SizeBreakdown[]
+
+  @@unique([sizeSetId, kode])
+  @@index([sizeSetId])
+  @@map("sizes")
+}
+
+model Color {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  hex       String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  articles Article[]
+
+  @@map("colors")
+}
+
+/// B-09 — Location terpisah dari Process. tipe MAKLOON dipakai supaya WIP
+/// di partner punya posisi yang bisa disebut, sesuai Q10.1.
+model Location {
+  id        String       @id @default(cuid())
+  kode      String       @unique
+  nama      String
+  tipe      LocationType @default(INTERNAL)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  batches ProductionBatch[]
+
+  @@index([tipe])
+  @@map("locations")
+}
+
+/// Q1.4 — sembilan proses, di-seed. Penambahan lewat master-data authority saja.
+model ProcessCatalog {
+  id        String      @id @default(cuid())
+  kode      ProcessCode @unique
+  nama      String
+  urutan    Int
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  rates ProcessRate[]
+
+  @@map("process_catalog")
+}
+
+/// B-02 — rateBasis dan rate sengaja NULL sampai CFO mengunci metodenya.
+/// Selama NULL, Estimated HPP tidak boleh dihitung. Modul pricing (Fase 2)
+/// harus menolak dan menampilkan pesan konfigurasi belum lengkap.
+model ProcessRate {
+  id            String    @id @default(cuid())
+  processId     String
+  garmentTypeId String?
+  rateBasis     RateBasis?
+  rate          Decimal?  @db.Decimal(18, 2)
+  currency      String    @default("IDR")
+  berlakuDari   DateTime?
+  berlakuSampai DateTime?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  process     ProcessCatalog @relation(fields: [processId], references: [id])
+  garmentType GarmentType?   @relation(fields: [garmentTypeId], references: [id])
+
+  @@unique([processId, garmentTypeId])
+  @@index([processId])
+  @@map("process_rates")
+}
+
+/// B-05 — tabel dibuat, isinya kosong sampai CFO memberi daftar resmi.
+/// Tanpa isi, Order tidak punya dasar menghitung due date invoice.
+model PaymentTerm {
+  id         String   @id @default(cuid())
+  kode       String   @unique
+  nama       String
+  dpPersen   Decimal? @db.Decimal(5, 2)
+  netHari    Int?
+  keterangan String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  buyers Buyer[]
+  orders Order[]
+
+  @@map("payment_terms")
+}
+
+/// Q1.7 — carrier configurable. FedEx tidak boleh di-hardcode.
+model Carrier {
+  id              String   @id @default(cuid())
+  kode            String   @unique
+  nama            String
+  isInternational Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("carriers")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  kontak    String?
+  telepon   String?
+  email     String?
+  alamat    String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  materials Material[]
+
+  @@map("suppliers")
+}
+
+/// Q1.5 — fabric mendukung lot/roll dan konversi UOM.
+/// Q1.6 — avgCost memakai moving average, lastPrice hanya untuk referensi.
+model Material {
+  id          String   @id @default(cuid())
+  kode        String   @unique
+  kategori    String
+  nama        String
+  spec        String?
+  warna       String?
+  uom         String
+  uomKonversi Decimal? @db.Decimal(18, 4)
+  uomDasar    String?
+  supportLot  Boolean  @default(false)
+  supplierId  String?
+  lastPrice   Decimal? @db.Decimal(18, 2)
+  avgCost     Decimal? @db.Decimal(18, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+
+  @@index([kategori])
+  @@index([supplierId])
+  @@map("materials")
+}
+
+/// Q7.3 — reject category adalah closed catalog, bukan free text.
+/// Dipakai Fase 3. Didefinisikan sekarang supaya master data lengkap sejak awal.
+model RejectCategory {
+  id        String   @id @default(cuid())
+  kode      String   @unique
+  nama      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("reject_categories")
+}
+
+// ===========================================================================
+// KONFIGURASI TBD
+// Tempat menyimpan seluruh keputusan yang belum dikunci owner.
+// Nilai NULL berarti belum diputuskan. Kode WAJIB memeriksa NULL dan menolak
+// beroperasi, bukan memakai nilai default diam-diam.
+// ===========================================================================
+
+model SystemConfig {
+  id        String     @id @default(cuid())
+  key       String     @unique
+  value     String?
+  tipe      ConfigType @default(STRING)
+  deskripsi String
+  /// Referensi QID atau blocker ID, supaya jelas siapa yang harus menjawab.
+  qidRef    String?
+  updatedAt DateTime   @updatedAt
+
+  @@map("system_configs")
+}

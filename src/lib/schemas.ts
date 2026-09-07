@@ -1,0 +1,135 @@
+import { z } from "zod";
+
+const nullableString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+  z.string().trim().min(1).nullable().optional(),
+);
+const dateString = z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+export const loginSchema = z.object({
+  username: z.string().trim().min(1),
+  password: z.string().min(1),
+});
+
+export const buyerCreateSchema = z.object({
+  kode: z.string().trim().min(1),
+  nama: z.string().trim().min(1),
+  company: nullableString,
+  country: nullableString,
+  defaultShipping: nullableString,
+  status: z.enum(["PROSPECT", "ACTIVE", "HOLD", "BLACKLIST"]).default("PROSPECT"),
+  holdReason: nullableString,
+  cmoOwnerId: nullableString,
+});
+
+export const buyerUpdateSchema = buyerCreateSchema.partial().extend({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const orderCreateSchema = z.object({
+  entityId: z.string().min(1),
+  buyerId: z.string().min(1),
+  tipe: z.enum(["SAMPLE", "PRODUCTION", "SAMPLE_PRODUCTION"]),
+  tanggalOrder: dateString,
+  deadline: dateString.optional().nullable(),
+  currency: z.string().trim().min(3).max(3).default("IDR"),
+  fxRate: z.coerce.number().positive().optional().nullable(),
+  fxRateDate: dateString.optional().nullable(),
+  fxSource: nullableString,
+  commercialValue: z.coerce.number().nonnegative().optional().nullable(),
+  baseCommercialValue: z.coerce.number().nonnegative().optional().nullable(),
+  paymentTermId: nullableString,
+  cmoPicId: nullableString,
+  isRepeat: z.boolean().default(false),
+  sourceOrderId: nullableString,
+});
+
+export const orderUpdateSchema = orderCreateSchema.partial().extend({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const articleCreateSchema = z.object({
+  orderId: z.string().min(1),
+  nama: z.string().trim().min(1),
+  garmentTypeId: nullableString,
+  colorId: nullableString,
+  mockupVersion: nullableString,
+  qty: z.coerce.number().int().positive(),
+  sampleRequired: z.boolean().default(false),
+  deadline: dateString.optional().nullable(),
+  businessPriority: z.coerce.number().int().min(1).max(5).default(3),
+  sizes: z.array(z.object({ sizeId: z.string().min(1), qty: z.coerce.number().int().min(0) })).min(1),
+});
+
+export const priorityUpdateSchema = z.object({
+  businessPriority: z.coerce.number().int().min(1).max(5),
+  version: z.number().int().min(0),
+  reason: z.string().trim().optional(),
+});
+
+export const batchCreateSchema = z.object({
+  articleId: z.string().min(1),
+  parentBatchId: nullableString,
+  plannedQty: z.coerce.number().int().positive(),
+  locationId: nullableString,
+});
+
+export const releaseSchema = z.object({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const taskCreateSchema = z.object({
+  sourceEntitas: z.string().trim().min(1),
+  sourceId: z.string().trim().min(1),
+  tipe: z.string().trim().min(1),
+  judul: z.string().trim().min(1),
+  deskripsi: nullableString,
+  assigneeId: nullableString,
+  assigneeRole: nullableString,
+  due: dateString.optional().nullable(),
+  prioritas: z.coerce.number().int().min(1).max(5).default(3),
+});
+
+export const taskUpdateSchema = z.object({
+  status: z.enum(["OPEN", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED", "OVERDUE"]).optional(),
+  assigneeId: nullableString,
+  assigneeRole: nullableString,
+  due: dateString.optional().nullable(),
+  prioritas: z.coerce.number().int().min(1).max(5).optional(),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
+export const exceptionCreateSchema = z.object({
+  tipe: z.enum([
+    "SHIPMENT_OUTSTANDING",
+    "PRICE_BELOW_MINIMUM",
+    "NEW_BUYER_CONTRACT",
+    "MAJOR_INVENTORY_ADJUSTMENT",
+    "CUSTOMER_RISK_COMPENSATION",
+    "CRITICAL_PEOPLE_ISSUE",
+    "CROSS_DEPT_DEADLOCK",
+    "INVESTMENT_EXPANSION",
+    "MAJOR_CASH_PURCHASE",
+  ]),
+  sourceModul: z.string().trim().min(1),
+  referensiId: nullableString,
+  masalah: z.string().trim().min(1),
+  dampak: z.string().trim().min(1),
+  rekomendasi: nullableString,
+  decisionOwnerRole: z.string().trim().min(1),
+  evidenceUrls: z.array(z.string().url()).default([]),
+});
+
+export const decisionSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  keputusan: z.string().trim().min(1),
+  alasan: z.string().trim().min(1),
+  version: z.number().int().min(0),
+});
+
+export const masterCreateSchema = z.record(z.unknown());
+export const masterUpdateSchema = z.record(z.unknown()).and(z.object({ version: z.number().int().min(0).optional(), reason: z.string().optional() }));

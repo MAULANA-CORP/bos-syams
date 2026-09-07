@@ -1,0 +1,13 @@
+# Target: .gitignore
+node_modules
+.next
+out
+build
+.env
+.env*.local
+src/generated
+*.log
+.DS_Store
+coverage
+pnpm-lock.yaml
+pnpm-workspace.yaml

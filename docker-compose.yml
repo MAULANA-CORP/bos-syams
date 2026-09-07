@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bos-syams-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bos_syams
+      POSTGRES_USER: bos_syams
+      POSTGRES_PASSWORD: bos_syams_dev
+    ports:
+      - "54320:5432"
+    volumes:
+      - bos_syams_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bos_syams -d bos_syams"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  bos_syams_pgdata:
