@@ -8,7 +8,7 @@
  *   - Field policy (Q11.1)
  *   - Authority Matrix (Q10.3 — baris dibuat, threshold sengaja NULL)
  *   - System config placeholder untuk seluruh blocker terbuka
- *   - User demo untuk seluruh role internal Fase 1-3
+ *   - User demo untuk seluruh role internal Fase 1-4
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
@@ -50,6 +50,7 @@ type Scope =
 const MODUL_BOS = [
   "BUYER", "ORDER", "ARTICLE", "BATCH",
   "QUOTATION", "PRODUCTION", "QC", "PACKING",
+  "PROCUREMENT", "INVENTORY",
   "MASTER_DATA", "TASK", "EXCEPTION", "AUDIT", "USER", "PERMISSION",
 ] as const;
 
@@ -69,6 +70,7 @@ const MATRIKS: AturanRole[] = [
       BUYER: ["VIEW"], ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
       QUOTATION: ["VIEW", "APPROVE", "OVERRIDE"],
       PRODUCTION: ["VIEW"], QC: ["VIEW"], PACKING: ["VIEW"],
+      PROCUREMENT: ["VIEW", "APPROVE", "OVERRIDE"], INVENTORY: ["VIEW", "APPROVE", "OVERRIDE"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW"], AUDIT: ["VIEW"],
       EXCEPTION: ["VIEW", "APPROVE", "OVERRIDE"],
     },
@@ -83,7 +85,7 @@ const MATRIKS: AturanRole[] = [
       ORDER: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       ARTICLE: ["VIEW", "CREATE", "EDIT"],
       QUOTATION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
-      BATCH: ["VIEW"],
+      BATCH: ["VIEW"], PROCUREMENT: ["VIEW"], INVENTORY: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -108,6 +110,7 @@ const MATRIKS: AturanRole[] = [
       BATCH: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       QC: ["VIEW"], PACKING: ["VIEW"],
+      PROCUREMENT: ["VIEW", "CREATE"], INVENTORY: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -119,6 +122,7 @@ const MATRIKS: AturanRole[] = [
       ORDER: ["VIEW"], ARTICLE: ["VIEW"],
       BATCH: ["VIEW", "EXECUTE"],
       PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      INVENTORY: ["VIEW"],
       TASK: ["VIEW", "EDIT"],
     },
   },
@@ -128,6 +132,8 @@ const MATRIKS: AturanRole[] = [
     akses: {
       ORDER: ["VIEW"], ARTICLE: ["VIEW"], BATCH: ["VIEW"],
       PRODUCTION: ["VIEW"], PACKING: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      PROCUREMENT: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
+      INVENTORY: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"], EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -140,6 +146,7 @@ const MATRIKS: AturanRole[] = [
       BUYER: ["VIEW", "EDIT"], ORDER: ["VIEW", "EDIT"], ARTICLE: ["VIEW"],
       BATCH: ["VIEW"],
       QUOTATION: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE", "OVERRIDE"],
+      PROCUREMENT: ["VIEW", "APPROVE"], INVENTORY: ["VIEW", "APPROVE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE", "APPROVE"],
@@ -398,7 +405,7 @@ const SEEDED_USERS: {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("Seed BOS Syams — Fase 1-3\n");
+  console.log("Seed BOS Syams — Fase 1-4\n");
 
   // --- Entity & Warehouse (Q0.2) ---
   const entity = await prisma.entity.upsert({
@@ -505,7 +512,7 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
-  // --- User demo seluruh role internal Fase 1-3 ---
+  // --- User demo seluruh role internal Fase 1-4 ---
   for (const seedUser of SEEDED_USERS) {
     const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
     const user = await prisma.user.upsert({
@@ -528,7 +535,7 @@ async function main() {
       });
     }
   }
-  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-3`);
+  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-4`);
 
   console.log("\nSelesai.");
   console.log("Login owner: owner / " + (process.env.SEED_OWNER_PASSWORD ? "(dari SEED_OWNER_PASSWORD)" : "owner123"));

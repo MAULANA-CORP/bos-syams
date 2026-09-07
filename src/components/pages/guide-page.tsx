@@ -35,8 +35,8 @@ const workflow = [
   {
     area: "Inventory / Purchasing",
     imageFlow: "Material planning, PR, PO, GR, update stok on hand.",
-    appNow: "Role dan master data inventory sudah aktif. PR/PO/GR belum menjadi modul transaksi penuh.",
-    status: "Berikutnya",
+    appNow: "Material Planning, PR, PO, GR, Inventory Ledger, dan hard block stok negatif aktif di Fase 4. Stock opname masih menunggu keputusan B-11.",
+    status: "Aktif",
   },
   {
     area: "Packing & Warehouse",
@@ -177,7 +177,7 @@ const controls = [
 
 const nextPhases = [
   ["Customer Portal", "Buyer bisa login sendiri untuk katalog, order, status produksi, invoice, dan shipment."],
-  ["Material Planning", "MRP, Purchase Request, Purchase Order, Goods Receipt, dan on hand stock."],
+  ["Stock Opname", "Proses opname dan adjustment besar masih menunggu keputusan B-11 serta aturan evidence approval."],
   ["Production Execution+", "Detail operator per station, timer produksi, kapasitas mesin, dan progress via web/HP."],
   ["Quality Control+", "Evidence foto, recheck rework lengkap, dan dashboard defect per kategori."],
   ["Packing & Goods Ready+", "Label PDF, dokumen packing list, dan update stok finished goods warehouse."],
@@ -221,10 +221,10 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Workflow dari gambar</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-3 sudah menambah pricing/quotation, production handoff, QC, dan packing. Modul portal, inventory transaksi, shipment, invoice, dan costing detail masih fase berikutnya.
+                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-4 sudah menambah pricing/quotation, production handoff, QC, packing, dan inventory PR to PO to GR. Modul portal, shipment, invoice, dan costing detail masih fase berikutnya.
                 </p>
               </div>
-              <StatusBadge tone="good">Fase 1-3 aktif bertahap</StatusBadge>
+              <StatusBadge tone="good">Fase 1-4 aktif bertahap</StatusBadge>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">

@@ -7,6 +7,8 @@ export const MODULES = [
   "PRODUCTION",
   "QC",
   "PACKING",
+  "PROCUREMENT",
+  "INVENTORY",
   "MASTER_DATA",
   "TASK",
   "EXCEPTION",

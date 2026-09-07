@@ -8,6 +8,41 @@ import { toDate } from "@/lib/date";
 
 type AnyInput = Record<string, unknown>;
 
+export async function getPricingConfig(actor: Actor) {
+  await assertBusinessAuthority(actor, "QUOTATION", "VIEW");
+  const pricing = await readPricingConfig(getPrisma() as never);
+  return {
+    markupMode: pricing.mode,
+    markupPercent: pricing.markupPercent,
+    isComplete: pricing.mode !== null && pricing.markupPercent !== null,
+  };
+}
+
+export async function updatePricingConfig(input: { markupMode: string; markupPercent: number }, actor: Actor, ipAddress?: string) {
+  await assertBusinessAuthority(actor, "QUOTATION", "APPROVE");
+  if (!hasAnyRole(actor, ["CFO", "CEO"])) {
+    throw new DomainError("Hanya CFO/CEO yang boleh mengunci pricing config", 403, "pricing_config_denied");
+  }
+  const prisma = getPrisma();
+  return prisma.$transaction(async (tx) => {
+    const before = await readPricingConfig(tx);
+    await tx.systemConfig.update({ where: { key: "PRICING_MARKUP_MODE" }, data: { value: input.markupMode } });
+    await tx.systemConfig.update({ where: { key: "PRICING_MARKUP_PERCENT" }, data: { value: String(input.markupPercent) } });
+    const after = { mode: input.markupMode, markupPercent: input.markupPercent };
+    await catatAudit({
+      entitasType: "SystemConfig",
+      entitasId: "PRICING",
+      aksi: "UPDATE",
+      oldValue: before,
+      newValue: after,
+      reason: "Kunci pricing config Fase 2",
+      actor,
+      ipAddress,
+    }, tx);
+    return { markupMode: after.mode, markupPercent: after.markupPercent, isComplete: true };
+  });
+}
+
 export async function listQuotations(actor: Actor) {
   const rows = await getPrisma().quotation.findMany({ orderBy: [{ updatedAt: "desc" }] });
   return maskSensitiveList(actor, rows as unknown as Record<string, unknown>[]);
@@ -62,7 +97,17 @@ export async function updateQuotationStatus(id: string, input: { status: string;
       if (current.offeredPrice === null) throw new DomainError("Offered price wajib diisi sebelum quotation dikirim", 409, "quotation_missing_price");
       if (current.minimumPrice === null) throw new DomainError("Minimum price belum bisa dihitung. Isi pricing config/HPP dulu.", 409, "pricing_config_incomplete");
       if (Number(current.offeredPrice) < Number(current.minimumPrice)) {
-        throw new DomainError("Offered price di bawah minimum price. Buat exception PRICE_BELOW_MINIMUM untuk approval CFO/CEO.", 409, "price_below_minimum");
+        const approvedException = await tx.exceptionCase.count({
+          where: {
+            tipe: "PRICE_BELOW_MINIMUM",
+            status: "APPROVED",
+            sourceModul: "QUOTATION",
+            referensiId: id,
+          },
+        });
+        if (approvedException === 0) {
+          throw new DomainError("Offered price di bawah minimum price. Buat exception PRICE_BELOW_MINIMUM untuk approval CFO/CEO.", 409, "price_below_minimum");
+        }
       }
     }
 

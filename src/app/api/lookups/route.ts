@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async () => {
   const prisma = getPrisma();
-  const [entities, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs] = await Promise.all([
+  const [entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders] = await Promise.all([
     prisma.entity.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
+    prisma.warehouse.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.buyer.findMany({ orderBy: { nama: "asc" } }),
     prisma.user.findMany({ where: { isActive: true }, orderBy: { nama: "asc" }, select: { id: true, nama: true, username: true } }),
     prisma.garmentType.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
@@ -22,7 +23,11 @@ export const GET = withAuth(async () => {
     prisma.rejectCategory.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.qualityInspection.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, batchId: true, articleId: true } }),
     prisma.packingJob.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, qtyToPack: true, packedQty: true } }),
+    prisma.material.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
+    prisma.supplier.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
+    prisma.procurementRequest.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, materialId: true, qtyNeeded: true, uom: true } }),
+    prisma.purchaseOrder.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, procurementRequestId: true, supplierId: true } }),
   ]);
 
-  return ok({ entities, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs });
+  return ok({ entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders });
 });

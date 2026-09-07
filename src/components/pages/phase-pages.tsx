@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, CircleAlert, Factory, PackageCheck, Plus, ReceiptText, Send, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CircleAlert, Factory, Layers3, PackageCheck, Plus, ReceiptText, Send, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { Button, EmptyState, GhostButton, PageHeader, Panel, StatusBadge, TextArea, TextInput } from "@/components/ui/primitives";
@@ -71,6 +71,7 @@ export function PricingPage() {
   const qc = useQueryClient();
   const lookups = useLookups();
   const quotations = useQuery({ queryKey: ["quotations"], queryFn: () => api<AnyRow[]>("/api/quotations") });
+  const pricingConfig = useQuery({ queryKey: ["pricing-config"], queryFn: () => api<AnyRow>("/api/pricing-config") });
   const [form, setForm] = React.useState({
     buyerId: "",
     orderId: "",
@@ -82,6 +83,16 @@ export function PricingPage() {
     validUntil: "",
     notes: "",
   });
+  const [configForm, setConfigForm] = React.useState({ markupMode: "MARKUP_ON_COST", markupPercent: "" });
+
+  React.useEffect(() => {
+    if (pricingConfig.data?.markupMode || pricingConfig.data?.markupPercent) {
+      setConfigForm({
+        markupMode: pricingConfig.data.markupMode ?? "MARKUP_ON_COST",
+        markupPercent: pricingConfig.data.markupPercent === null || pricingConfig.data.markupPercent === undefined ? "" : String(pricingConfig.data.markupPercent),
+      });
+    }
+  }, [pricingConfig.data]);
 
   const create = useMutation({
     mutationFn: () => api("/api/quotations", { method: "POST", body: JSON.stringify(form) }),
@@ -102,13 +113,46 @@ export function PricingPage() {
     onError: (e) => toast.error((e as Error).message),
   });
 
+  const saveConfig = useMutation({
+    mutationFn: () => api("/api/pricing-config", { method: "PATCH", body: JSON.stringify(configForm) }),
+    onSuccess: () => {
+      toast.success("Pricing config terkunci");
+      qc.invalidateQueries({ queryKey: ["pricing-config"] });
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
   const l = (lookups.data ?? {}) as AnyRow;
 
   return (
     <>
       <PageHeader title="Pricing & Quotation" subtitle="Fase 2: HPP, markup, minimum price, quotation, dan gate harga sebelum order confirmed." />
       <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
-        <Panel>
+        <div className="space-y-4">
+          <Panel>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal className="h-5 w-5 text-red-700 dark:text-red-300" />
+                <h2 className="font-semibold">Pricing config</h2>
+              </div>
+              <StatusBadge tone={pricingConfig.data?.isComplete ? "good" : "warn"}>{pricingConfig.data?.isComplete ? "Lengkap" : "Belum lengkap"}</StatusBadge>
+            </div>
+            <FormGrid>
+              <SearchableSelect
+                label="Markup mode"
+                value={configForm.markupMode}
+                onChange={(v) => setConfigForm({ ...configForm, markupMode: v ?? "MARKUP_ON_COST" })}
+                options={[
+                  { value: "MARKUP_ON_COST", label: "Markup on cost", hint: "HPP x (1 + p)" },
+                  { value: "MARGIN_ON_PRICE", label: "Margin on price", hint: "HPP / (1 - p)" },
+                ]}
+              />
+              <TextInput type="number" placeholder="Markup percent" value={configForm.markupPercent} onChange={(e) => setConfigForm({ ...configForm, markupPercent: e.target.value })} />
+              <Button disabled={saveConfig.isPending} onClick={() => saveConfig.mutate()}><CheckCircle2 className="mr-2 h-4 w-4" />Kunci Config</Button>
+            </FormGrid>
+          </Panel>
+
+          <Panel>
           <div className="mb-4 flex items-center gap-2">
             <ReceiptText className="h-5 w-5 text-red-700 dark:text-red-300" />
             <h2 className="font-semibold">Buat Quotation</h2>
@@ -129,7 +173,8 @@ export function PricingPage() {
             <TextArea placeholder="Catatan" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             <Button disabled={create.isPending} onClick={() => create.mutate()}><Plus className="mr-2 h-4 w-4" />Simpan Quotation</Button>
           </FormGrid>
-        </Panel>
+          </Panel>
+        </div>
 
         <Panel>
           {quotations.isLoading ? <SkeletonRows /> : quotations.error ? <ErrorBox message={(quotations.error as Error).message} onRetry={() => quotations.refetch()} /> : (
@@ -166,6 +211,7 @@ export function ProductionFlowPage() {
         <Tabs.List className="flex gap-2 overflow-x-auto rounded-md border border-border bg-card p-2">
           {[
             { value: "handoff", label: "Handoff", icon: Factory },
+            { value: "wip", label: "WIP", icon: Layers3 },
             { value: "qc", label: "QC", icon: ShieldCheck },
             { value: "packing", label: "Packing", icon: PackageCheck },
           ].map(({ value, label, icon: Icon }) => (
@@ -176,6 +222,7 @@ export function ProductionFlowPage() {
           ))}
         </Tabs.List>
         <Tabs.Content value="handoff"><HandoffTab /></Tabs.Content>
+        <Tabs.Content value="wip"><WipTab /></Tabs.Content>
         <Tabs.Content value="qc"><QcTab /></Tabs.Content>
         <Tabs.Content value="packing"><PackingTab /></Tabs.Content>
       </Tabs.Root>
@@ -188,14 +235,15 @@ function HandoffTab() {
   const lookups = useLookups();
   const rows = useQuery({ queryKey: ["production-handoffs"], queryFn: () => api<AnyRow[]>("/api/production-handoffs") });
   const [form, setForm] = React.useState({ batchId: "", fromProcess: "", toProcess: "", fromLocationId: "", toLocationId: "", qtySent: "", notes: "" });
+  const [receiveQty, setReceiveQty] = React.useState<Record<string, string>>({});
   const create = useMutation({
     mutationFn: () => api("/api/production-handoffs", { method: "POST", body: JSON.stringify(form) }),
     onSuccess: () => { toast.success("Handoff terkirim"); setForm({ batchId: "", fromProcess: "", toProcess: "", fromLocationId: "", toLocationId: "", qtySent: "", notes: "" }); qc.invalidateQueries({ queryKey: ["production-handoffs"] }); },
     onError: (e) => toast.error((e as Error).message),
   });
   const receive = useMutation({
-    mutationFn: (row: AnyRow) => api(`/api/production-handoffs/${row.id}/receive`, { method: "POST", body: JSON.stringify({ qtyReceived: row.qtySent, version: row.version, notes: "Receive handoff" }) }),
-    onSuccess: () => { toast.success("Handoff diterima"); qc.invalidateQueries({ queryKey: ["production-handoffs"] }); },
+    mutationFn: (row: AnyRow) => api(`/api/production-handoffs/${row.id}/receive`, { method: "POST", body: JSON.stringify({ qtyReceived: Number(receiveQty[row.id] ?? row.qtySent), version: row.version, notes: "Receive handoff" }) }),
+    onSuccess: () => { toast.success("Handoff diterima"); setReceiveQty({}); qc.invalidateQueries({ queryKey: ["production-handoffs"] }); qc.invalidateQueries({ queryKey: ["production-wip"] }); qc.invalidateQueries({ queryKey: ["lookups"] }); },
     onError: (e) => toast.error((e as Error).message),
   });
   const l = (lookups.data ?? {}) as AnyRow;
@@ -226,9 +274,30 @@ function HandoffTab() {
         { key: "qtyReceived", label: "Received", render: (r) => r.qtyReceived ?? "-" },
         { key: "discrepancyQty", label: "Diff", render: (r) => r.discrepancyQty ?? "-" },
         { key: "status", label: "Status", render: (r) => <StatusBadge tone={r.status === "DISCREPANCY" ? "bad" : r.status === "RECEIVED" ? "good" : "warn"}>{r.status}</StatusBadge> },
-        { key: "aksi", label: "Aksi", render: (r) => <GhostButton disabled={r.status !== "SENT"} onClick={() => receive.mutate(r)}>Receive</GhostButton> },
+        { key: "aksi", label: "Aksi", render: (r) => (
+          <div className="flex min-w-48 items-center gap-2">
+            <TextInput className="w-24" type="number" disabled={r.status !== "SENT"} value={receiveQty[r.id] ?? String(r.qtySent)} onChange={(e) => setReceiveQty({ ...receiveQty, [r.id]: e.target.value })} />
+            <GhostButton disabled={r.status !== "SENT"} onClick={() => receive.mutate(r)}>Receive</GhostButton>
+          </div>
+        ) },
       ]} />}</Panel>
     </div>
+  );
+}
+
+function WipTab() {
+  const rows = useQuery({ queryKey: ["production-wip"], queryFn: () => api<AnyRow[]>("/api/production-wip") });
+  return (
+    <Panel>
+      {rows.isLoading ? <SkeletonRows /> : rows.error ? <ErrorBox message={(rows.error as Error).message} onRetry={() => rows.refetch()} /> : (
+        <DataTable rows={rows.data ?? []} columns={[
+          { key: "location", label: "Location" },
+          { key: "tipe", label: "Tipe" },
+          { key: "qty", label: "Qty WIP" },
+          { key: "batches", label: "Batch" },
+        ]} />
+      )}
+    </Panel>
   );
 }
 

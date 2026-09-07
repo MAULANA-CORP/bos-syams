@@ -100,6 +100,11 @@ export const quotationStatusSchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+export const pricingConfigSchema = z.object({
+  markupMode: z.enum(["MARKUP_ON_COST", "MARGIN_ON_PRICE"]),
+  markupPercent: z.coerce.number().positive().max(99),
+});
+
 export const productionHandoffCreateSchema = z.object({
   batchId: nullableString,
   fromProcess: nullableString,
@@ -145,6 +150,51 @@ export const packingStatusSchema = z.object({
   status: z.enum(["PACKED", "GOODS_READY"]),
   packedQty: z.coerce.number().int().nonnegative(),
   version: z.number().int().min(0),
+  notes: nullableString,
+});
+
+export const procurementRequestCreateSchema = z.object({
+  articleId: nullableString,
+  materialId: z.string().min(1),
+  qtyNeeded: z.coerce.number().positive(),
+  uom: z.string().trim().min(1),
+  neededBy: dateString.optional().nullable(),
+  approverRole: nullableString,
+  reason: nullableString,
+});
+
+export const procurementStatusSchema = z.object({
+  status: z.enum(["APPROVED", "CANCELLED"]),
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const purchaseOrderCreateSchema = z.object({
+  procurementRequestId: z.string().min(1),
+  supplierId: z.string().min(1),
+  currency: z.string().trim().min(3).max(3).default("IDR"),
+  total: z.coerce.number().nonnegative().optional().nullable(),
+  orderedAt: dateString.optional().nullable(),
+  expectedAt: dateString.optional().nullable(),
+  notes: nullableString,
+});
+
+export const goodsReceiptCreateSchema = z.object({
+  purchaseOrderId: z.string().min(1),
+  materialId: z.string().min(1),
+  warehouseId: z.string().min(1),
+  qtyReceived: z.coerce.number().positive(),
+  uom: z.string().trim().min(1),
+  receivedAt: dateString.optional().nullable(),
+  notes: nullableString,
+});
+
+export const inventoryIssueSchema = z.object({
+  materialId: z.string().min(1),
+  warehouseId: z.string().min(1),
+  qtyOut: z.coerce.number().positive(),
+  sourceType: nullableString,
+  sourceId: nullableString,
   notes: nullableString,
 });
 
