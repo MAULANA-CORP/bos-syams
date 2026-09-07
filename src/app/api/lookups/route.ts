@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export const GET = withAuth(async () => {
   const prisma = getPrisma();
-  const [entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments] = await Promise.all([
+  const [entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments, portalAccounts, crmPipelines, sampleApprovals, makloonJobs, employees, manpowerPlans] = await Promise.all([
     prisma.entity.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.warehouse.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.buyer.findMany({ orderBy: { nama: "asc" } }),
@@ -30,7 +30,13 @@ export const GET = withAuth(async () => {
     prisma.carrier.findMany({ where: { isActive: true }, orderBy: { nama: "asc" } }),
     prisma.invoice.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, orderId: true, buyerId: true, amount: true, currency: true } }),
     prisma.shipment.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, status: true, orderId: true } }),
+    prisma.portalAccount.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, buyerId: true, email: true, portalRole: true, isActive: true } }),
+    prisma.crmPipeline.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, buyerId: true, title: true, stage: true, nextFollowUp: true, ownerId: true } }),
+    prisma.sampleApproval.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, articleId: true, buyerId: true, status: true } }),
+    prisma.makloonJob.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nomor: true, batchId: true, supplierId: true, status: true } }),
+    prisma.employee.findMany({ orderBy: { updatedAt: "desc" }, select: { id: true, nama: true, departemen: true, roleTitle: true, status: true } }),
+    prisma.manpowerPlan.findMany({ orderBy: [{ tanggal: "desc" }, { departemen: "asc" }], select: { id: true, tanggal: true, departemen: true, plannedPeople: true, actualPeople: true } }),
   ]);
 
-  return ok({ entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments });
+  return ok({ entities, warehouses, buyers, users, garmentTypes, sizeSets, sizes, colors, locations, paymentTerms, articles, orders, batches, processCatalog, rejectCategories, qualityInspections, packingJobs, materials, suppliers, procurementRequests, purchaseOrders, carriers, invoices, shipments, portalAccounts, crmPipelines, sampleApprovals, makloonJobs, employees, manpowerPlans });
 });

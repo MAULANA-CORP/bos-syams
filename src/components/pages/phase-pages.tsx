@@ -87,6 +87,8 @@ export function PricingPage() {
 
   React.useEffect(() => {
     if (pricingConfig.data?.markupMode || pricingConfig.data?.markupPercent) {
+      // Data konfigurasi datang async; form perlu mengikuti nilai owner setelah query selesai.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setConfigForm({
         markupMode: pricingConfig.data.markupMode ?? "MARKUP_ON_COST",
         markupPercent: pricingConfig.data.markupPercent === null || pricingConfig.data.markupPercent === undefined ? "" : String(pricingConfig.data.markupPercent),

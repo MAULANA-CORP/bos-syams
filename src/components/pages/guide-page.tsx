@@ -17,19 +17,19 @@ const workflow = [
   {
     area: "Customer / Buyer",
     imageFlow: "Portal customer, inquiry, status produksi, invoice, shipment.",
-    appNow: "Buyer master dan data buyer aktif. Portal customer publik belum dibuat di Fase 1.",
-    status: "Sebagian",
+    appNow: "Customer Portal sudah aktif di Fase 6: login buyer, order status, sample approval, invoice, payment evidence, shipment tracking, dan ticket.",
+    status: "Aktif",
   },
   {
     area: "CMO / Commercial",
     imageFlow: "Inquiry/order, breakdown article, harga, payment terms, konfirmasi order.",
-    appNow: "Order, article, size breakdown, buyer ownership, SPK Release oleh CMO, dan Quotation gate sudah aktif. Confirm Order dibuka setelah quotation approved.",
+    appNow: "Order, article, size breakdown, buyer ownership, CRM pipeline, sample approval, SPK Release oleh CMO, dan Quotation gate sudah aktif.",
     status: "Aktif",
   },
   {
     area: "COO / Production",
     imageFlow: "Production planning, material requirement, penjadwalan, kapasitas, eksekusi, QC.",
-    appNow: "Batch planning, Batch Release, Production Handoff, discrepancy, dan QC Inspection sudah aktif di Fase 3.",
+    appNow: "Batch planning, Batch Release, Production Handoff, discrepancy, QC Inspection, dan Makloon job sudah aktif.",
     status: "Aktif",
   },
   {
@@ -67,6 +67,9 @@ const inputSteps = [
   "Tim produksi, warehouse, finance, QC, dan people memakai Task dan Exception untuk koordinasi lintas divisi.",
   "Warehouse membuat Shipment setelah goods ready. Sistem otomatis menahan shipment kalau invoice order belum paid.",
   "CFO membuat invoice dan memverifikasi payment. Claim transfer masih REPORTED sampai CFO menekan Verify.",
+  "CMO membuat Portal Account untuk buyer invite-only; buyer login di /portal/login untuk cek status, upload evidence payment, approve sample, dan kirim ticket.",
+  "CMO mengelola CRM pipeline dan Sample Approval; Production/Warehouse mengelola Makloon jika proses keluar pabrik dibutuhkan.",
+  "CHRO mengisi Employee dan Manpower Plan, lalu Owner melihat ringkasannya di CEO Control Tower.",
   "Owner/CEO membuka Dashboard, Audit, dan Exception untuk melihat ringkasan, risiko, dan keputusan yang perlu approval, termasuk shipment outstanding.",
 ];
 
@@ -76,42 +79,42 @@ const roles = [
     password: "owner123",
     role: "CEO",
     scope: "ALL_COMPANY",
-    akses: "Lihat seluruh operasi, approval exception owner, override tertentu, dashboard CEO.",
+    akses: "Lihat seluruh operasi, CEO Control Tower, approval exception owner, override tertentu, dashboard CEO.",
   },
   {
     username: "cmo",
     password: "cmo123",
     role: "CMO_MANAGER",
     scope: "DEPARTMENT",
-    akses: "Buyer, order, article, quotation, shipment view/create, SPK Release, task commercial, exception commercial.",
+    akses: "Buyer, order, article, quotation, CRM, sample, portal account, shipment view/create, SPK Release, task commercial, exception commercial.",
   },
   {
     username: "cmo_support",
     password: "support123",
     role: "CMO_SUPPORT",
     scope: "TEAM",
-    akses: "Bantu input buyer, lihat order/article/invoice/shipment, buat dan update task commercial.",
+    akses: "Bantu input buyer, CRM, sample, lihat order/article/invoice/shipment, buat dan update task commercial.",
   },
   {
     username: "coo",
     password: "coo123",
     role: "PRODUCTION_CONTROLLER",
     scope: "PRODUCTION",
-    akses: "Planning batch, edit batch, Batch Release, exception produksi.",
+    akses: "Planning batch, edit batch, Batch Release, makloon job, manpower view, exception produksi.",
   },
   {
     username: "production",
     password: "prod123",
     role: "PRODUCTION_USER",
     scope: "ASSIGNED",
-    akses: "Lihat order/article/batch yang relevan, update task produksi.",
+    akses: "Lihat order/article/batch/makloon yang relevan, update task produksi.",
   },
   {
     username: "warehouse",
     password: "wh123",
     role: "WAREHOUSE_PURCHASING",
     scope: "INVENTORY",
-    akses: "Master data inventory, PR/PO/GR/ledger/opname, shipment create/execute, task warehouse, exception material/purchasing.",
+    akses: "Master data inventory, PR/PO/GR/ledger/opname, shipment create/execute, makloon execute, task warehouse, exception material/purchasing.",
   },
   {
     username: "qc",
@@ -125,14 +128,14 @@ const roles = [
     password: "cfo123",
     role: "CFO",
     scope: "FINANCE",
-    akses: "Invoice, payment claim, payment verify/reject, collection notes, field sensitif HPP/cost, buyer/order finance fields, exception pricing/finance.",
+    akses: "Invoice, payment claim, payment verify/reject, collection notes, makloon cost, field sensitif HPP/cost, buyer/order finance fields, exception pricing/finance.",
   },
   {
     username: "chro",
     password: "chro123",
     role: "CHRO",
     scope: "PEOPLE",
-    akses: "Task people, exception people, persiapan modul employee/manpower.",
+    akses: "Employee data, manpower planning, task people, exception people.",
   },
   {
     username: "admin",
@@ -178,7 +181,6 @@ const controls = [
 ];
 
 const nextPhases = [
-  ["Customer Portal", "Buyer bisa login sendiri untuk katalog, order, status produksi, invoice, dan shipment."],
   ["Inventory Costing+", "Valuasi moving average, actual HPP, dan costing variance masuk penguatan Finance/Costing berikutnya."],
   ["Production Execution+", "Detail operator per station, timer produksi, kapasitas mesin, dan progress via web/HP."],
   ["Quality Control+", "Evidence foto, recheck rework lengkap, dan dashboard defect per kategori."],
@@ -222,10 +224,10 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Workflow dari gambar</h2>
                 <p className="mt-1 text-sm text-muted">
-                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-5 sudah menambah pricing/quotation, production handoff, QC, packing, inventory PR to PO to GR, stock opname, invoice, payment, dan shipment gate. Modul portal buyer dan costing detail masih fase berikutnya.
+                  Fase 1 menjadi central database, RBAC, master data, order, article, batch, task, exception, dan audit. Fase 2-7 sudah menambah pricing/quotation, production handoff, QC, packing, inventory PR to PO to GR, stock opname, invoice, payment, shipment gate, customer portal, CRM, sample approval, makloon, employee, manpower, dan CEO Control Tower. Costing detail masih fase berikutnya.
                 </p>
               </div>
-              <StatusBadge tone="good">Fase 1-5 aktif bertahap</StatusBadge>
+              <StatusBadge tone="good">Fase 1-7 aktif bertahap</StatusBadge>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-2">
@@ -267,7 +269,7 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Role dan akun demo</h2>
                 <p className="mt-1 text-sm text-muted">
-                  "Operating subledger" adalah subtitle sistem di sidebar. Login owner memakai role CEO.
+                  &quot;Operating subledger&quot; adalah subtitle sistem di sidebar. Login owner memakai role CEO.
                 </p>
               </div>
               <StatusBadge tone="good">Owner tersedia: owner / owner123</StatusBadge>

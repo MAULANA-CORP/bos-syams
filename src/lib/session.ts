@@ -5,6 +5,10 @@ export interface SessionData {
   userId?: string;
   nama?: string;
   isLoggedIn?: boolean;
+  portalAccountId?: string;
+  portalBuyerId?: string;
+  portalEmail?: string;
+  isPortalLoggedIn?: boolean;
   // Role SENGAJA tidak disimpan di sini.
   // Role dan permission selalu dibaca fresh dari DB (lihat api-helpers.ts)
   // supaya pencabutan hak berlaku seketika, bukan menunggu session kedaluwarsa.

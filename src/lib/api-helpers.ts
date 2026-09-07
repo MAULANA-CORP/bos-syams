@@ -3,10 +3,21 @@ import { z } from "zod";
 import { DomainError, type Actor, type ModuleCode, type PermissionAction } from "@/lib/domain-types";
 import { getSession } from "@/lib/session";
 import { getCurrentActor, assertPermission } from "@/lib/rbac";
+import { getPrisma } from "@/lib/prisma";
 
 export type AuthedContext = {
   req: NextRequest;
   actor: Actor;
+};
+
+export type PortalContext = {
+  req: NextRequest;
+  portal: {
+    id: string;
+    buyerId: string;
+    email: string;
+    role: string;
+  };
 };
 
 export function ok<T>(data: T, init?: ResponseInit) {
@@ -90,6 +101,34 @@ export function withPermission(
     await assertPermission(ctx.actor, modul, aksi);
     return handler(ctx, context);
   });
+}
+
+export function withPortalAuth(
+  handler: (ctx: PortalContext, context?: unknown) => Promise<Response>,
+) {
+  return async (req: NextRequest, context?: unknown) => {
+    try {
+      const session = await getSession();
+      if (!session.isPortalLoggedIn || !session.portalAccountId || !session.portalBuyerId) {
+        throw new DomainError("Portal belum login", 401, "portal_auth_required");
+      }
+      const account = await getPrisma().portalAccount.findUnique({ where: { id: session.portalAccountId } });
+      if (!account || !account.isActive || account.buyerId !== session.portalBuyerId) {
+        throw new DomainError("Akun portal tidak aktif atau session tidak valid", 401, "portal_session_invalid");
+      }
+      return await handler({
+        req,
+        portal: {
+          id: account.id,
+          buyerId: account.buyerId,
+          email: account.email,
+          role: account.portalRole,
+        },
+      }, context);
+    } catch (error) {
+      return fail(error);
+    }
+  };
 }
 
 export function getClientIp(req: NextRequest) {

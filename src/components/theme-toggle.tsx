@@ -16,11 +16,10 @@ function apply(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = React.useState<Theme>("system");
-
-  React.useEffect(() => {
-    setTheme((localStorage.getItem("theme") as Theme) ?? "system");
-  }, []);
+  const [theme, setTheme] = React.useState<Theme>(() => {
+    if (typeof window === "undefined") return "system";
+    return (localStorage.getItem("theme") as Theme) ?? "system";
+  });
 
   // Ikuti perubahan tema OS selama user masih memilih "system"
   React.useEffect(() => {

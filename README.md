@@ -1,6 +1,6 @@
 # BOS Syams
 
-Business Operating System untuk Syams Garment Manufacturer. Implementasi ini menuntaskan Fase 1 PRD dan mulai menjalankan Fase 2-5: pondasi auth, RBAC, audit trail, typed exception, task engine, core backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, master data, Pricing & Quotation, Production Handoff, QC Inspection, Packing, Inventory Ledger, PR -> PO -> GR, Stock Opname, Invoice, Payment, Shipment Gate, shell aplikasi, dan dokumen deploy.
+Business Operating System untuk Syams Garment Manufacturer. Implementasi ini menuntaskan Fase 1 PRD dan mulai menjalankan Fase 2-7: pondasi auth, RBAC, audit trail, typed exception, task engine, core backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, master data, Pricing & Quotation, Production Handoff, QC Inspection, Packing, Inventory Ledger, PR -> PO -> GR, Stock Opname, Invoice, Payment, Shipment Gate, Customer Portal, CRM Pipeline, Sample Approval, Makloon, Employee, Manpower Plan, CEO Control Tower, shell aplikasi, dan dokumen deploy.
 
 ## Stack
 
@@ -76,6 +76,10 @@ Fase 3 aktif di `/production-flow`: Production Handoff dengan discrepancy, QC In
 Fase 4 aktif di `/inventory`: Procurement Request, Purchase Order, Goods Receipt yang menambah inventory ledger, material issue, hard block stok negatif, dan Stock Opname dengan evidence, approval, lalu apply adjustment ke ledger.
 
 Fase 5 aktif di `/finance` dan `/shipments`: Invoice issued, payment claim tetap `REPORTED` sampai CFO verify/reject, collection notes mengikuti field masking, shipment otomatis `BLOCKED_BY_PAYMENT` kalau invoice order belum `PAID`, dan CEO release hanya lewat exception `SHIPMENT_OUTSTANDING` yang sudah `APPROVED`.
+
+Fase 6 aktif di `/portal-admin`, `/portal/login`, dan `/portal`: akun portal invite-only terikat Buyer ID, buyer hanya melihat order/sample/invoice/shipment/ticket miliknya, bisa approve/reject sample dan submit payment evidence sebagai `REPORTED`.
+
+Fase 7 aktif di `/crm`, `/samples`, `/makloon`, `/people`, dan `/control-tower`: CMO Pipeline/CRM, Sample Approval internal, Makloon sent/received/closed, Employee & Manpower CHRO, dan CEO Control Tower.
 
 Master data seperti size, garment type, color, location, carrier, supplier, material, payment term, dan process rate sengaja tidak diisi data karangan. Isi lewat database/menu Master Data setelah owner memberi daftar resmi.
 

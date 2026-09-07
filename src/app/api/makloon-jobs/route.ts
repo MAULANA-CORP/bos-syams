@@ -1,0 +1,12 @@
+import { created, getClientIp, ok, readJson, withAuth } from "@/lib/api-helpers";
+import { createMakloonJob, listMakloonJobs } from "@/lib/phase7-service";
+import { makloonJobCreateSchema } from "@/lib/schemas";
+
+export const dynamic = "force-dynamic";
+
+export const GET = withAuth(async ({ actor }) => ok(await listMakloonJobs(actor)));
+
+export const POST = withAuth(async ({ req, actor }) => {
+  const input = await readJson(req, makloonJobCreateSchema);
+  return created(await createMakloonJob(input, actor, getClientIp(req)));
+});

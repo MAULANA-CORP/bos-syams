@@ -1,5 +1,5 @@
 /**
- * Seed BOS SYAMS — Fase 1
+ * Seed BOS SYAMS — Fase 1-7
  *
  * Yang di-seed hanya data yang sudah TERKUNCI di dokumen keputusan owner:
  *   - Entity & Warehouse (Q0.2, satu masing-masing)
@@ -8,7 +8,7 @@
  *   - Field policy (Q11.1)
  *   - Authority Matrix (Q10.3 — baris dibuat, threshold sengaja NULL)
  *   - System config placeholder untuk seluruh blocker terbuka
- *   - User demo untuk seluruh role internal Fase 1-5
+ *   - User demo untuk seluruh role internal Fase 1-7
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
@@ -51,6 +51,7 @@ const MODUL_BOS = [
   "BUYER", "ORDER", "ARTICLE", "BATCH",
   "QUOTATION", "PRODUCTION", "QC", "PACKING",
   "PROCUREMENT", "INVENTORY", "INVOICE", "PAYMENT", "SHIPMENT",
+  "PORTAL", "CRM", "SAMPLE", "MAKLOON", "EMPLOYEE", "MANPOWER", "CONTROL_TOWER",
   "MASTER_DATA", "TASK", "EXCEPTION", "AUDIT", "USER", "PERMISSION",
 ] as const;
 
@@ -72,6 +73,8 @@ const MATRIKS: AturanRole[] = [
       PRODUCTION: ["VIEW"], QC: ["VIEW"], PACKING: ["VIEW"],
       PROCUREMENT: ["VIEW", "APPROVE", "OVERRIDE"], INVENTORY: ["VIEW", "APPROVE", "OVERRIDE"],
       INVOICE: ["VIEW", "APPROVE", "OVERRIDE"], PAYMENT: ["VIEW", "APPROVE"], SHIPMENT: ["VIEW", "APPROVE", "OVERRIDE"],
+      PORTAL: ["VIEW"], CRM: ["VIEW"], SAMPLE: ["VIEW", "APPROVE"], MAKLOON: ["VIEW", "APPROVE", "OVERRIDE"],
+      EMPLOYEE: ["VIEW"], MANPOWER: ["VIEW"], CONTROL_TOWER: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW"], AUDIT: ["VIEW"],
       EXCEPTION: ["VIEW", "APPROVE", "OVERRIDE"],
     },
@@ -88,6 +91,8 @@ const MATRIKS: AturanRole[] = [
       QUOTATION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       BATCH: ["VIEW"], PROCUREMENT: ["VIEW"], INVENTORY: ["VIEW"],
       INVOICE: ["VIEW"], PAYMENT: ["VIEW"], SHIPMENT: ["VIEW", "CREATE"],
+      PORTAL: ["VIEW", "CREATE", "EDIT"], CRM: ["VIEW", "CREATE", "EDIT", "EXECUTE"], SAMPLE: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      MAKLOON: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -100,6 +105,7 @@ const MATRIKS: AturanRole[] = [
       ORDER: ["VIEW"], ARTICLE: ["VIEW"],
       QUOTATION: ["VIEW", "CREATE", "EDIT"],
       INVOICE: ["VIEW"], SHIPMENT: ["VIEW"],
+      PORTAL: ["VIEW"], CRM: ["VIEW", "CREATE", "EDIT"], SAMPLE: ["VIEW", "CREATE", "EDIT"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
     },
   },
@@ -115,6 +121,7 @@ const MATRIKS: AturanRole[] = [
       QC: ["VIEW"], PACKING: ["VIEW"],
       PROCUREMENT: ["VIEW", "CREATE"], INVENTORY: ["VIEW"],
       SHIPMENT: ["VIEW"],
+      SAMPLE: ["VIEW"], MAKLOON: ["VIEW", "CREATE", "EDIT", "EXECUTE"], MANPOWER: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -128,6 +135,7 @@ const MATRIKS: AturanRole[] = [
       PRODUCTION: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       INVENTORY: ["VIEW"],
       SHIPMENT: ["VIEW"],
+      MAKLOON: ["VIEW", "EXECUTE"],
       TASK: ["VIEW", "EDIT"],
     },
   },
@@ -140,6 +148,7 @@ const MATRIKS: AturanRole[] = [
       PROCUREMENT: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
       INVENTORY: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       INVOICE: ["VIEW"], PAYMENT: ["VIEW"], SHIPMENT: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      PORTAL: ["VIEW"], SAMPLE: ["VIEW"], MAKLOON: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"], EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -156,6 +165,8 @@ const MATRIKS: AturanRole[] = [
       INVOICE: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
       PAYMENT: ["VIEW", "CREATE", "EDIT", "APPROVE", "EXECUTE"],
       SHIPMENT: ["VIEW", "APPROVE"],
+      PORTAL: ["VIEW"], CRM: ["VIEW"], SAMPLE: ["VIEW", "APPROVE"], MAKLOON: ["VIEW", "CREATE", "EDIT", "APPROVE"],
+      CONTROL_TOWER: ["VIEW"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE", "APPROVE"],
@@ -164,7 +175,13 @@ const MATRIKS: AturanRole[] = [
   {
     role: "CHRO",
     scope: "PEOPLE",
-    akses: { TASK: ["VIEW", "EDIT"], EXCEPTION: ["VIEW", "CREATE"] },
+    akses: {
+      EMPLOYEE: ["VIEW", "CREATE", "EDIT"],
+      MANPOWER: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
+      CONTROL_TOWER: ["VIEW"],
+      TASK: ["VIEW", "EDIT"],
+      EXCEPTION: ["VIEW", "CREATE"],
+    },
   },
   {
     // Otoritas PASS/REJECT (QC-001). Modul QC menyusul di Fase 3.
@@ -175,6 +192,7 @@ const MATRIKS: AturanRole[] = [
       PRODUCTION: ["VIEW"], QC: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       PACKING: ["VIEW"],
       SHIPMENT: ["VIEW"],
+      SAMPLE: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -188,6 +206,7 @@ const MATRIKS: AturanRole[] = [
       USER: ["VIEW", "CREATE", "EDIT"],
       PERMISSION: ["VIEW", "EDIT"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
+      PORTAL: ["VIEW"],
       AUDIT: ["VIEW"],
     },
   },
@@ -415,7 +434,7 @@ const SEEDED_USERS: {
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log("Seed BOS Syams — Fase 1-5\n");
+  console.log("Seed BOS Syams — Fase 1-7\n");
 
   // --- Entity & Warehouse (Q0.2) ---
   const entity = await prisma.entity.upsert({
@@ -522,7 +541,7 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
-  // --- User demo seluruh role internal Fase 1-5 ---
+  // --- User demo seluruh role internal Fase 1-7 ---
   for (const seedUser of SEEDED_USERS) {
     const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
     const user = await prisma.user.upsert({
@@ -545,7 +564,7 @@ async function main() {
       });
     }
   }
-  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-5`);
+  console.log(`  User demo: ${SEEDED_USERS.length} akun untuk seluruh role internal Fase 1-7`);
 
   console.log("\nSelesai.");
   console.log("Login owner: owner / " + (process.env.SEED_OWNER_PASSWORD ? "(dari SEED_OWNER_PASSWORD)" : "owner123"));

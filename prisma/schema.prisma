@@ -1,4 +1,4 @@
-// BOS SYAMS — schema Fase 1-4 (Core Backbone + Pricing + Production + Inventory)
+// BOS SYAMS — schema Fase 1-7 (Core Backbone + Pricing + Production + Inventory + Finance + Portal + CRM/People)
 //
 // Setiap keputusan di file ini menunjuk ke QID pada dokumen
 // BOS_SYAMS_FINAL_JAWABAN_KLARIFIKASI_DEVELOPER (approved 3 Sep 2026)
