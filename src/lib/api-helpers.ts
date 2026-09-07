@@ -32,6 +32,18 @@ export function fail(error: unknown) {
     );
   }
 
+  if (
+    error &&
+    typeof error === "object" &&
+    "code" in error &&
+    (error as { code?: string }).code === "ECONNREFUSED"
+  ) {
+    return NextResponse.json(
+      { error: "Database tidak bisa dihubungi. Pastikan PostgreSQL sudah jalan dan DATABASE_URL benar.", type: "database_unreachable" },
+      { status: 503 },
+    );
+  }
+
   console.error(error);
   return NextResponse.json(
     { error: "Terjadi kesalahan server", type: "server_error" },
