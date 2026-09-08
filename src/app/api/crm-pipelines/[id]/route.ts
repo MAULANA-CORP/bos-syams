@@ -1,4 +1,4 @@
-import { getClientIp, ok, readJson, withAuth } from "@/lib/api-helpers";
+import { getClientIp, ok, readJson, withPermission } from "@/lib/api-helpers";
 import { updateCrmPipeline } from "@/lib/phase7-service";
 import { crmPipelineUpdateSchema } from "@/lib/schemas";
 
@@ -9,7 +9,7 @@ async function getId(context: unknown) {
   return (await typed.params).id;
 }
 
-export const PATCH = withAuth(async ({ req, actor }, context) => {
+export const PATCH = withPermission("CRM", "EDIT", async ({ req, actor }, context) => {
   const input = await readJson(req, crmPipelineUpdateSchema);
   return ok(await updateCrmPipeline(await getId(context), input, actor, getClientIp(req)));
 });

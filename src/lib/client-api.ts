@@ -1,8 +1,10 @@
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const csrf = typeof document === "undefined" ? undefined : document.cookie.split("; ").find((item) => item.startsWith("bos_syams_csrf="))?.split("=").slice(1).join("=");
   const res = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(csrf ? { "X-CSRF-Token": decodeURIComponent(csrf) } : {}),
       ...(init?.headers ?? {}),
     },
   });

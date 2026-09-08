@@ -1,4 +1,4 @@
-import { getClientIp, ok, readJson, withAuth } from "@/lib/api-helpers";
+import { getClientIp, ok, readJson, withPermission } from "@/lib/api-helpers";
 import { decideStockOpname } from "@/lib/phase4-service";
 import { stockOpnameDecisionSchema } from "@/lib/schemas";
 
@@ -9,7 +9,7 @@ async function getId(context: unknown) {
   return (await typed.params).id;
 }
 
-export const POST = withAuth(async ({ req, actor }, context) => {
+export const POST = withPermission("INVENTORY", "APPROVE", async ({ req, actor }, context) => {
   const input = await readJson(req, stockOpnameDecisionSchema);
   return ok(await decideStockOpname(await getId(context), input, actor, getClientIp(req)));
 });

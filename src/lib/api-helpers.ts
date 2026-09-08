@@ -4,6 +4,7 @@ import { DomainError, type Actor, type ModuleCode, type PermissionAction } from 
 import { getSession } from "@/lib/session";
 import { getCurrentActor, assertPermission } from "@/lib/rbac";
 import { getPrisma } from "@/lib/prisma";
+import { checkRequestRateLimit } from "@/lib/request-rate-limit";
 
 export type AuthedContext = {
   req: NextRequest;
@@ -63,7 +64,7 @@ export function fail(error: unknown) {
     );
   }
 
-  console.error(error);
+  console.error("[api] unhandled request error", error instanceof Error ? error.name : typeof error);
   return NextResponse.json(
     { error: "Terjadi kesalahan server", type: "server_error" },
     { status: 500 },
@@ -80,6 +81,11 @@ export function withAuth(
 ) {
   return async (req: NextRequest, context?: unknown) => {
     try {
+      if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+        const limited = checkRequestRateLimit(`${getClientIp(req) ?? "unknown"}:${req.nextUrl.pathname}`);
+        if (limited) throw new DomainError(`Terlalu banyak request. Coba lagi ${limited} detik.`, 429, "rate_limited");
+        assertCsrf(req);
+      }
       const session = await getSession();
       if (!session.isLoggedIn || !session.userId) {
         throw new DomainError("Belum login", 401, "auth_required");
@@ -108,6 +114,11 @@ export function withPortalAuth(
 ) {
   return async (req: NextRequest, context?: unknown) => {
     try {
+      if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
+        const limited = checkRequestRateLimit(`${getClientIp(req) ?? "unknown"}:${req.nextUrl.pathname}`);
+        if (limited) throw new DomainError(`Terlalu banyak request. Coba lagi ${limited} detik.`, 429, "rate_limited");
+        assertCsrf(req);
+      }
       const session = await getSession();
       if (!session.isPortalLoggedIn || !session.portalAccountId || !session.portalBuyerId) {
         throw new DomainError("Portal belum login", 401, "portal_auth_required");
@@ -129,6 +140,20 @@ export function withPortalAuth(
       return fail(error);
     }
   };
+}
+
+export function assertCsrf(req: NextRequest) {
+  if (!["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) return;
+  const cookieToken = req.cookies.get("bos_syams_csrf")?.value;
+  const headerToken = req.headers.get("x-csrf-token");
+  if (!cookieToken || !headerToken || cookieToken.length < 20 || cookieToken !== headerToken) {
+    throw new DomainError("CSRF token tidak valid", 403, "csrf_invalid");
+  }
+  const origin = req.headers.get("origin");
+  if (origin) {
+    const configured = process.env.APP_BASE_URL ? new URL(process.env.APP_BASE_URL).origin : req.nextUrl.origin;
+    if (origin !== configured) throw new DomainError("Origin request tidak diizinkan", 403, "origin_invalid");
+  }
 }
 
 export function getClientIp(req: NextRequest) {

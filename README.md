@@ -65,6 +65,8 @@ Login demo setelah seed:
 
 Panduan workflow, urutan input, dan penjelasan role ada di menu `/guide`.
 
+Security note: Next.js 16 memakai `src/proxy.ts` sebagai convention resmi pengganti `middleware.ts`; build akan menampilkan `Proxy (Middleware)`. Proxy menolak halaman tanpa cookie session, membuat CSRF cookie, dan memasang security headers. Prisma 7 mengambil `DATABASE_URL` dari `prisma.config.ts`, sehingga `datasource` schema sengaja tidak menduplikasi `url`.
+
 ## Yang Sengaja Diblokir
 
 Confirm Order memakai gate pricing/CFO approval. Order baru bisa `CONFIRMED` setelah ada Quotation `APPROVED` untuk order atau seluruh article terkait. Kalau pricing config/HPP belum lengkap, sistem tetap mengembalikan blocker `pricing_gate_blocked` atau `pricing_config_incomplete` dan mencatat percobaan confirm ke audit trail.

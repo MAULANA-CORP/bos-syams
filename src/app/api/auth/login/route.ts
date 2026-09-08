@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { getPrisma } from "@/lib/prisma";
 import { catatAudit } from "@/lib/audit";
-import { fail, getClientIp, ok, readJson } from "@/lib/api-helpers";
+import { assertCsrf, fail, getClientIp, ok, readJson } from "@/lib/api-helpers";
 import { checkLoginRateLimit, clearLoginRateLimit } from "@/lib/auth-rate-limit";
 import { getSession } from "@/lib/session";
 import { loginSchema } from "@/lib/schemas";
@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
+    assertCsrf(req);
     const input = await readJson(req, loginSchema);
     const ip = getClientIp(req) ?? "unknown";
     const limited = checkLoginRateLimit(`${ip}:${input.username.toLowerCase()}`);
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
     await catatAudit({ entitasType: "User", entitasId: user.id, aksi: "LOGIN", actor, ipAddress: ip });
 
     const session = await getSession();
+    session.destroy();
     session.userId = user.id;
     session.nama = user.nama;
     session.isLoggedIn = true;

@@ -80,77 +80,66 @@ const inputSteps = [
 const roles = [
   {
     username: "owner",
-    password: "owner123",
     role: "CEO",
     scope: "ALL_COMPANY",
     akses: "Lihat seluruh operasi, CEO Control Tower, Request Revision, Change Request, SLA/Delegation, approval exception owner, dan authority khusus yang typed.",
   },
   {
     username: "cmo",
-    password: "cmo123",
     role: "CMO_MANAGER",
     scope: "DEPARTMENT",
     akses: "Buyer, order, article, quotation, CRM, sample, portal account, Request Revision, Change Request create/edit, shipment view/create, SPK Release, task commercial, exception commercial.",
   },
   {
     username: "cmo_support",
-    password: "support123",
     role: "CMO_SUPPORT",
     scope: "TEAM",
     akses: "Bantu input buyer, CRM, sample, Request Revision, Change Request create/edit, lihat order/article/invoice/shipment, buat dan update task commercial.",
   },
   {
     username: "coo",
-    password: "coo123",
     role: "PRODUCTION_CONTROLLER",
     scope: "PRODUCTION",
     akses: "Planning batch, edit batch, Batch Release, Makloon job, Request Revision, Change Request review/apply, SLA view, manpower view, exception produksi.",
   },
   {
     username: "production",
-    password: "prod123",
     role: "PRODUCTION_USER",
     scope: "ASSIGNED",
     akses: "Lihat order/article/batch/makloon yang relevan, update task produksi.",
   },
   {
     username: "warehouse",
-    password: "wh123",
     role: "WAREHOUSE_PURCHASING",
     scope: "INVENTORY",
     akses: "Master data inventory, PR/PO/GR/ledger/opname, shipment create/execute, makloon execute, task warehouse, exception material/purchasing.",
   },
   {
     username: "qc",
-    password: "qc123",
     role: "QC",
     scope: "QUALITY",
     akses: "Lihat produksi, master data QC, task QC, exception quality.",
   },
   {
     username: "cfo",
-    password: "cfo123",
     role: "CFO",
     scope: "FINANCE",
     akses: "Invoice, payment claim, payment verify/reject, collection notes, makloon cost, field sensitif HPP/cost, final selling price, Change Request financial review, buyer/order finance fields, exception pricing/finance.",
   },
   {
     username: "chro",
-    password: "chro123",
     role: "CHRO",
     scope: "PEOPLE",
     akses: "Employee data, manpower planning, SLA Rule configuration, task people, exception people.",
   },
   {
     username: "admin",
-    password: "admin123",
     role: "SYSTEM_ADMIN",
     scope: "SYSTEM",
     akses: "Kelola user, permission, config, audit. Tidak punya approval bisnis harian.",
   },
   {
     username: "lutfi",
-    password: "lutfi123",
     role: "CMO_MANAGER + WAREHOUSE_PURCHASING",
     scope: "DEPARTMENT + INVENTORY",
     akses: "Contoh akun multi-role untuk user lintas commercial dan inventory.",
@@ -290,10 +279,10 @@ export function GuidePage() {
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Role dan akun demo</h2>
                 <p className="mt-1 text-sm text-muted">
-                  &quot;Operating subledger&quot; adalah subtitle sistem di sidebar. Login owner memakai role CEO.
+                  &quot;Operating subledger&quot; adalah subtitle sistem di sidebar. Login owner memakai role CEO. Password tidak ditampilkan di UI; seed mengambilnya dari environment dan menyimpan hash di database.
                 </p>
               </div>
-              <StatusBadge tone="good">Owner tersedia: owner / owner123</StatusBadge>
+              <StatusBadge tone="good">Owner tersedia: username `owner`</StatusBadge>
             </div>
 
             <div className="overflow-x-auto rounded-md border border-border">
@@ -301,7 +290,6 @@ export function GuidePage() {
                 <thead className="bg-zinc-100 text-xs uppercase text-muted dark:bg-zinc-900">
                   <tr>
                     <th className="px-3 py-3">Username</th>
-                    <th className="px-3 py-3">Password</th>
                     <th className="px-3 py-3">Role</th>
                     <th className="px-3 py-3">Scope</th>
                     <th className="px-3 py-3">Akses utama</th>
@@ -311,7 +299,6 @@ export function GuidePage() {
                   {roles.map((role) => (
                     <tr key={role.username} className="bg-background">
                       <td className="px-3 py-3 font-medium text-foreground">{role.username}</td>
-                      <td className="px-3 py-3 text-foreground">{role.password}</td>
                       <td className="px-3 py-3 text-foreground">{role.role}</td>
                       <td className="px-3 py-3 text-muted">{role.scope}</td>
                       <td className="px-3 py-3 text-foreground">{role.akses}</td>
