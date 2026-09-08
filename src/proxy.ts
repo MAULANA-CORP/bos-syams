@@ -57,15 +57,25 @@ function applySecurityHeaders(response: NextResponse, req: NextRequest) {
 
   const origin = req.headers.get("origin");
   if (origin) {
-    const configured = process.env.APP_BASE_URL ? new URL(process.env.APP_BASE_URL).origin : req.nextUrl.origin;
     response.headers.set("Vary", "Origin");
-    if (origin === configured) {
+    if (getAllowedOrigins(req).has(origin)) {
       response.headers.set("Access-Control-Allow-Origin", origin);
       response.headers.set("Access-Control-Allow-Credentials", "true");
       response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
       response.headers.set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token");
     }
   }
+}
+
+function getAllowedOrigins(req: NextRequest) {
+  const allowed = new Set<string>([req.nextUrl.origin]);
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || req.nextUrl.protocol.replace(":", "");
+  const host = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || req.headers.get("host") || req.nextUrl.host;
+  if (host) allowed.add(`${proto}://${host}`);
+  if (process.env.APP_BASE_URL) {
+    try { allowed.add(new URL(process.env.APP_BASE_URL).origin); } catch { /* invalid deployment config is ignored here */ }
+  }
+  return allowed;
 }
 
 export const config = {

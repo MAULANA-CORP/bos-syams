@@ -42,13 +42,12 @@ New Service → **App** → Source: GitHub → pilih repo
 - Port: **3000**
 - Isi semua environment variable dari `.env.example`
 
-## 5. Migrasi + seed (sekali saja)
-Setelah container jalan, buka Terminal service app:
+## 5. Migrasi + seed
+Setiap container start otomatis menjalankan `prisma migrate deploy` sebelum Next.js start. Dockerfile menunggu PostgreSQL siap dan retry sampai 30 kali. Setelah deploy pertama, buka Terminal service app untuk seed:
 ```bash
-npx prisma migrate deploy
 npm run db:seed
 ```
-Dockerfile sudah membawa Prisma CLI, `tsx`, schema, dan generated client supaya dua command di atas bisa jalan dari terminal container EasyPanel.
+Dockerfile membawa Prisma CLI, config, migration, schema, dan generated client.
 
 ## 6. Domain
 EasyPanel → Domains → `namaapp.maulanacorp.my.id` → arahkan ke port 3000.

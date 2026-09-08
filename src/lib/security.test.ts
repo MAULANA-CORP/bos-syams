@@ -26,6 +26,21 @@ describe("request security", () => {
     expect(() => assertCsrf(invalid)).toThrow("CSRF token tidak valid");
   });
 
+  it("accepts the actual reverse-proxy origin when APP_BASE_URL is canonical", () => {
+    const previous = process.env.APP_BASE_URL;
+    process.env.APP_BASE_URL = "https://namaapp.maulanacorp.my.id";
+    const request = new NextRequest("http://localhost:3000/api/orders", {
+      method: "POST",
+      headers: {
+        origin: "http://localhost:3000",
+        cookie: "bos_syams_csrf=csrf-token-12345678901234567890",
+        "x-csrf-token": "csrf-token-12345678901234567890",
+      },
+    });
+    expect(() => assertCsrf(request)).not.toThrow();
+    process.env.APP_BASE_URL = previous;
+  });
+
   it("limits repeated mutation requests per key", () => {
     const key = `security-test-${Date.now()}`;
     expect(checkRequestRateLimit(key, 2)).toBeUndefined();

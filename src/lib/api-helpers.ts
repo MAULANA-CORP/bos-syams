@@ -64,6 +64,13 @@ export function fail(error: unknown) {
     );
   }
 
+  if (error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "P2022") {
+    return NextResponse.json(
+      { error: "Database belum memakai migration terbaru. Deploy ulang image atau jalankan prisma migrate deploy.", type: "database_schema_outdated" },
+      { status: 503 },
+    );
+  }
+
   console.error("[api] unhandled request error", error instanceof Error ? error.name : typeof error);
   return NextResponse.json(
     { error: "Terjadi kesalahan server", type: "server_error" },
@@ -151,9 +158,19 @@ export function assertCsrf(req: NextRequest) {
   }
   const origin = req.headers.get("origin");
   if (origin) {
-    const configured = process.env.APP_BASE_URL ? new URL(process.env.APP_BASE_URL).origin : req.nextUrl.origin;
-    if (origin !== configured) throw new DomainError("Origin request tidak diizinkan", 403, "origin_invalid");
+    if (!getAllowedOrigins(req).has(origin)) throw new DomainError("Origin request tidak diizinkan", 403, "origin_invalid");
   }
+}
+
+function getAllowedOrigins(req: NextRequest) {
+  const allowed = new Set<string>([req.nextUrl.origin]);
+  const proto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || req.nextUrl.protocol.replace(":", "");
+  const host = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim() || req.headers.get("host") || req.nextUrl.host;
+  if (host) allowed.add(`${proto}://${host}`);
+  if (process.env.APP_BASE_URL) {
+    try { allowed.add(new URL(process.env.APP_BASE_URL).origin); } catch { /* invalid deployment config is ignored here */ }
+  }
+  return allowed;
 }
 
 export function getClientIp(req: NextRequest) {
