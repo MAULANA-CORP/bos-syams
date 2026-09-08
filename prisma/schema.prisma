@@ -290,6 +290,32 @@ enum RevisionStatus {
   DONE
 }
 
+enum OrderChangeType {
+  CHANGE
+  CANCELLATION
+}
+
+enum OrderChangeStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SlaStatus {
+  ON_TRACK
+  WARNING
+  OVERDUE
+  COMPLETED
+}
+
 // ===========================================================================
 // ORGANISASI — Q0.2
 // V1 memakai satu legal entity dan satu gudang, tapi ID wajib ada di schema
@@ -355,16 +381,21 @@ model User {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  roles             UserRole[]
-  auditTrails       AuditTrail[]
-  tasksAssigned     Task[]            @relation("TaskAssignee")
-  buyersOwned       Buyer[]           @relation("BuyerCmoOwner")
-  ordersPic         Order[]           @relation("OrderCmoPic")
-  ordersSpkReleased Order[]           @relation("OrderSpkReleaser")
-  batchesReleased   ProductionBatch[] @relation("BatchReleaser")
-  exceptionsRaised  ExceptionCase[]   @relation("ExceptionRequester")
-  exceptionsDecided ExceptionCase[]   @relation("ExceptionDecider")
-  revisionRequests  RevisionRequest[]  @relation("RevisionRequester")
+  roles              UserRole[]
+  auditTrails        AuditTrail[]
+  tasksAssigned      Task[]               @relation("TaskAssignee")
+  buyersOwned        Buyer[]              @relation("BuyerCmoOwner")
+  ordersPic          Order[]              @relation("OrderCmoPic")
+  ordersSpkReleased  Order[]              @relation("OrderSpkReleaser")
+  batchesReleased    ProductionBatch[]    @relation("BatchReleaser")
+  exceptionsRaised   ExceptionCase[]      @relation("ExceptionRequester")
+  exceptionsDecided  ExceptionCase[]      @relation("ExceptionDecider")
+  revisionRequests   RevisionRequest[]    @relation("RevisionRequester")
+  changeRequestsMade OrderChangeRequest[] @relation("OrderChangeRequester")
+  changeReviews      OrderChangeReview[]  @relation("OrderChangeReviewer")
+  delegationsFrom    Delegation[]         @relation("DelegationFrom")
+  delegationsTo      Delegation[]         @relation("DelegationTo")
+  slaOwned           SlaInstance[]        @relation("SlaOwner")
 
   @@index([isActive])
   @@map("users")
@@ -483,7 +514,8 @@ model Task {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  assignee User? @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  slaInstance SlaInstance?
 
   @@index([assigneeId, status])
   @@index([assigneeRole, status])
@@ -614,14 +646,15 @@ model Order {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  entity         Entity       @relation(fields: [entityId], references: [id])
-  buyer          Buyer        @relation(fields: [buyerId], references: [id])
-  cmoPic         User?        @relation("OrderCmoPic", fields: [cmoPicId], references: [id])
-  spkReleasedBy  User?        @relation("OrderSpkReleaser", fields: [spkReleasedById], references: [id])
-  paymentTerm    PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-  sourceOrder    Order?       @relation("OrderRepeat", fields: [sourceOrderId], references: [id])
-  repeatOrders   Order[]      @relation("OrderRepeat")
+  entity         Entity               @relation(fields: [entityId], references: [id])
+  buyer          Buyer                @relation(fields: [buyerId], references: [id])
+  cmoPic         User?                @relation("OrderCmoPic", fields: [cmoPicId], references: [id])
+  spkReleasedBy  User?                @relation("OrderSpkReleaser", fields: [spkReleasedById], references: [id])
+  paymentTerm    PaymentTerm?         @relation(fields: [paymentTermId], references: [id])
+  sourceOrder    Order?               @relation("OrderRepeat", fields: [sourceOrderId], references: [id])
+  repeatOrders   Order[]              @relation("OrderRepeat")
   articles       Article[]
+  changeRequests OrderChangeRequest[]
 
   @@index([buyerId, status])
   @@index([status, deadline])
@@ -630,24 +663,24 @@ model Order {
 }
 
 model Article {
-  id             String    @id @default(cuid())
-  kode           String    @unique
-  orderId        String
-  nama           String
-  garmentTypeId  String?
-  colorId        String?
-  mockupVersion  String?
-  qty            Int
-  sampleRequired Boolean   @default(false)
-  deadline       DateTime?
+  id               String    @id @default(cuid())
+  kode             String    @unique
+  orderId          String
+  nama             String
+  garmentTypeId    String?
+  colorId          String?
+  mockupVersion    String?
+  qty              Int
+  sampleRequired   Boolean   @default(false)
+  deadline         DateTime?
   /// Q2.7 — skala 1..5. Perubahan setelah SPK Release wajib reason + audit.
-  businessPriority Int     @default(3)
+  businessPriority Int       @default(3)
   /// Article.health TIDAK disimpan sebagai kolom. Q10.7 menyebut health sebagai
   /// derived aggregate dari blocker aktual. Kolom tersimpan akan basi dan
   /// mulai diperlakukan sebagai kebenaran. Dihitung di lib/article-health.ts.
-  version        Int       @default(0)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   order       Order             @relation(fields: [orderId], references: [id])
   garmentType GarmentType?      @relation(fields: [garmentTypeId], references: [id])
@@ -810,17 +843,17 @@ model ProcessCatalog {
 /// Selama NULL, Estimated HPP tidak boleh dihitung. Modul pricing (Fase 2)
 /// harus menolak dan menampilkan pesan konfigurasi belum lengkap.
 model ProcessRate {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   processId     String
   garmentTypeId String?
   rateBasis     RateBasis?
-  rate          Decimal?  @db.Decimal(18, 2)
-  currency      String    @default("IDR")
+  rate          Decimal?   @db.Decimal(18, 2)
+  currency      String     @default("IDR")
   berlakuDari   DateTime?
   berlakuSampai DateTime?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 
   process     ProcessCatalog @relation(fields: [processId], references: [id])
   garmentType GarmentType?   @relation(fields: [garmentTypeId], references: [id])
@@ -833,15 +866,18 @@ model ProcessRate {
 /// B-05 — tabel dibuat, isinya kosong sampai CFO memberi daftar resmi.
 /// Tanpa isi, Order tidak punya dasar menghitung due date invoice.
 model PaymentTerm {
-  id         String   @id @default(cuid())
-  kode       String   @unique
-  nama       String
-  dpPersen   Decimal? @db.Decimal(5, 2)
-  netHari    Int?
-  keterangan String?
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String   @id @default(cuid())
+  kode           String   @unique
+  nama           String
+  dpPersen       Decimal? @db.Decimal(5, 2)
+  netHari        Int?
+  dueBasis       String?
+  dpTrigger      String?
+  balanceTrigger String?
+  keterangan     String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   buyers Buyer[]
   orders Order[]
@@ -926,24 +962,24 @@ model RejectCategory {
 // ===========================================================================
 
 model Quotation {
-  id             String          @id @default(cuid())
-  nomor          String          @unique
-  buyerId        String?
-  orderId        String?
-  articleId      String?
-  currency       String          @default("IDR")
-  estimatedHpp   Decimal?        @db.Decimal(18, 2)
-  markupPercent  Decimal?        @db.Decimal(5, 2)
-  minimumPrice   Decimal?        @db.Decimal(18, 2)
-  offeredPrice   Decimal?        @db.Decimal(18, 2)
-  baseOfferedPrice Decimal?       @db.Decimal(18, 2)
-  status         QuotationStatus @default(DRAFT)
-  validUntil     DateTime?
-  notes          String?
-  approvedByRole UserRoleCode?
-  version        Int             @default(0)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id               String          @id @default(cuid())
+  nomor            String          @unique
+  buyerId          String?
+  orderId          String?
+  articleId        String?
+  currency         String          @default("IDR")
+  estimatedHpp     Decimal?        @db.Decimal(18, 2)
+  markupPercent    Decimal?        @db.Decimal(5, 2)
+  minimumPrice     Decimal?        @db.Decimal(18, 2)
+  offeredPrice     Decimal?        @db.Decimal(18, 2)
+  baseOfferedPrice Decimal?        @db.Decimal(18, 2)
+  status           QuotationStatus @default(DRAFT)
+  validUntil       DateTime?
+  notes            String?
+  approvedByRole   UserRoleCode?
+  version          Int             @default(0)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   @@index([buyerId, status])
   @@index([orderId])
@@ -979,21 +1015,21 @@ model ProductionHandoff {
 }
 
 model QualityInspection {
-  id               String    @id @default(cuid())
-  nomor            String    @unique
+  id               String   @id @default(cuid())
+  nomor            String   @unique
   batchId          String?
   articleId        String?
   sizeId           String?
-  inspectedQty     Int       @default(0)
-  passQty          Int       @default(0)
-  rejectQty        Int       @default(0)
+  inspectedQty     Int      @default(0)
+  passQty          Int      @default(0)
+  rejectQty        Int      @default(0)
   rejectCategoryId String?
-  status           QcStatus  @default(PENDING)
+  status           QcStatus @default(PENDING)
   inspectorId      String?
   notes            String?
-  version          Int       @default(0)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  version          Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([batchId, status])
   @@index([articleId])
@@ -1027,20 +1063,20 @@ model PackingJob {
 // ===========================================================================
 
 model ProcurementRequest {
-  id            String            @id @default(cuid())
-  nomor         String            @unique
-  articleId     String?
-  materialId    String?
-  qtyNeeded     Decimal?          @db.Decimal(18, 4)
-  uom           String?
-  neededBy      DateTime?
-  requesterId   String?
-  approverRole  UserRoleCode?
-  status        ProcurementStatus @default(REQUESTED)
-  reason        String?
-  version       Int               @default(0)
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id           String            @id @default(cuid())
+  nomor        String            @unique
+  articleId    String?
+  materialId   String?
+  qtyNeeded    Decimal?          @db.Decimal(18, 4)
+  uom          String?
+  neededBy     DateTime?
+  requesterId  String?
+  approverRole UserRoleCode?
+  status       ProcurementStatus @default(REQUESTED)
+  reason       String?
+  version      Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
   @@index([status, neededBy])
   @@index([materialId])
@@ -1048,19 +1084,19 @@ model ProcurementRequest {
 }
 
 model PurchaseOrder {
-  id                  String            @id @default(cuid())
-  nomor               String            @unique
+  id                   String            @id @default(cuid())
+  nomor                String            @unique
   procurementRequestId String?
-  supplierId          String?
-  currency            String            @default("IDR")
-  total               Decimal?          @db.Decimal(18, 2)
-  status              ProcurementStatus @default(ORDERED)
-  orderedAt           DateTime?
-  expectedAt          DateTime?
-  notes               String?
-  version             Int               @default(0)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  supplierId           String?
+  currency             String            @default("IDR")
+  total                Decimal?          @db.Decimal(18, 2)
+  status               ProcurementStatus @default(ORDERED)
+  orderedAt            DateTime?
+  expectedAt           DateTime?
+  notes                String?
+  version              Int               @default(0)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
 
   @@index([supplierId, status])
   @@map("purchase_orders")
@@ -1088,18 +1124,18 @@ model GoodsReceipt {
 }
 
 model InventoryLedger {
-  id          String       @id @default(cuid())
-  materialId  String?
-  warehouseId String?
-  movement    MovementType
-  qtyIn       Decimal      @default(0) @db.Decimal(18, 4)
-  qtyOut      Decimal      @default(0) @db.Decimal(18, 4)
-  balanceAfter Decimal?    @db.Decimal(18, 4)
-  sourceType  String?
-  sourceId    String?
-  actorId     String?
-  notes       String?
-  createdAt   DateTime     @default(now())
+  id           String       @id @default(cuid())
+  materialId   String?
+  warehouseId  String?
+  movement     MovementType
+  qtyIn        Decimal      @default(0) @db.Decimal(18, 4)
+  qtyOut       Decimal      @default(0) @db.Decimal(18, 4)
+  balanceAfter Decimal?     @db.Decimal(18, 4)
+  sourceType   String?
+  sourceId     String?
+  actorId      String?
+  notes        String?
+  createdAt    DateTime     @default(now())
 
   @@index([materialId, createdAt])
   @@index([sourceType, sourceId])
@@ -1107,25 +1143,25 @@ model InventoryLedger {
 }
 
 model StockOpname {
-  id           String            @id @default(cuid())
-  nomor        String            @unique
-  warehouseId  String
-  materialId   String
-  systemQty    Decimal           @default(0) @db.Decimal(18, 4)
-  countedQty   Decimal           @default(0) @db.Decimal(18, 4)
-  differenceQty Decimal          @default(0) @db.Decimal(18, 4)
-  evidenceUrl  String
-  reason       String
-  status       StockOpnameStatus @default(SUBMITTED)
-  countedAt    DateTime          @default(now())
-  countedById  String?
-  approvedById String?
-  approvedAt   DateTime?
-  appliedById  String?
-  appliedAt    DateTime?
-  version      Int               @default(0)
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  nomor         String            @unique
+  warehouseId   String
+  materialId    String
+  systemQty     Decimal           @default(0) @db.Decimal(18, 4)
+  countedQty    Decimal           @default(0) @db.Decimal(18, 4)
+  differenceQty Decimal           @default(0) @db.Decimal(18, 4)
+  evidenceUrl   String
+  reason        String
+  status        StockOpnameStatus @default(SUBMITTED)
+  countedAt     DateTime          @default(now())
+  countedById   String?
+  approvedById  String?
+  approvedAt    DateTime?
+  appliedById   String?
+  appliedAt     DateTime?
+  version       Int               @default(0)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([warehouseId, status])
   @@index([materialId, countedAt])
@@ -1247,17 +1283,17 @@ model PortalTicket {
 // ===========================================================================
 
 model CrmPipeline {
-  id           String   @id @default(cuid())
-  nomor        String   @unique
+  id           String    @id @default(cuid())
+  nomor        String    @unique
   buyerId      String?
   title        String
-  stage        String   @default("LEAD")
+  stage        String    @default("LEAD")
   nextFollowUp DateTime?
   ownerId      String?
   notes        String?
-  version      Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  version      Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([buyerId, stage])
   @@index([ownerId, nextFollowUp])
@@ -1289,7 +1325,7 @@ model MakloonJob {
   supplierId  String?
   processId   String?
   unitPrice   Decimal?      @db.Decimal(18, 2)
-  total        Decimal?      @db.Decimal(18, 2)
+  total       Decimal?      @db.Decimal(18, 2)
   qtySent     Int           @default(0)
   qtyReceived Int           @default(0)
   dueDate     DateTime?
@@ -1339,23 +1375,23 @@ model ManpowerPlan {
 // ===========================================================================
 
 model RevisionRequest {
-  id            String             @id @default(cuid())
-  nomor         String             @unique
+  id            String         @id @default(cuid())
+  nomor         String         @unique
   judul         String
   modul         String
   deskripsi     String
-  prioritas     String             @default("MEDIUM")
-  status        RevisionStatus     @default(OPEN)
+  prioritas     String         @default("MEDIUM")
+  status        RevisionStatus @default(OPEN)
   imageData     String?
   imageName     String?
   imageMime     String?
   requestedById String
-  version       Int                @default(0)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  version       Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
-  requestedBy   User               @relation("RevisionRequester", fields: [requestedById], references: [id])
-  checklist     RevisionChecklist[]
+  requestedBy User                @relation("RevisionRequester", fields: [requestedById], references: [id])
+  checklist   RevisionChecklist[]
 
   @@index([status, prioritas])
   @@index([requestedById, status])
@@ -1363,18 +1399,147 @@ model RevisionRequest {
 }
 
 model RevisionChecklist {
-  id               String         @id @default(cuid())
+  id                String   @id @default(cuid())
   revisionRequestId String
-  label            String
-  isDone           Boolean        @default(false)
-  sortOrder        Int            @default(0)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  label             String
+  isDone            Boolean  @default(false)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  revisionRequest  RevisionRequest @relation(fields: [revisionRequestId], references: [id])
+  revisionRequest RevisionRequest @relation(fields: [revisionRequestId], references: [id])
 
   @@index([revisionRequestId, isDone])
   @@map("revision_checklists")
+}
+
+// ===========================================================================
+// CHANGE REQUEST & CANCELLATION — perubahan setelah release wajib versioned
+// ===========================================================================
+
+model OrderChangeRequest {
+  id                 String            @id @default(cuid())
+  nomor              String            @unique
+  orderId            String
+  jenis              OrderChangeType
+  alasan             String
+  dampak             String?
+  requestedChanges   Json?
+  disposition        String?
+  financialTreatment String?
+  evidenceUrls       String[]
+  status             OrderChangeStatus @default(SUBMITTED)
+  requesterId        String
+  appliedAt          DateTime?
+  appliedById        String?
+  version            Int               @default(0)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  order     Order               @relation(fields: [orderId], references: [id])
+  requester User                @relation("OrderChangeRequester", fields: [requesterId], references: [id])
+  reviews   OrderChangeReview[]
+
+  @@index([orderId, status])
+  @@index([status, jenis])
+  @@map("order_change_requests")
+}
+
+model OrderChangeReview {
+  id         String       @id @default(cuid())
+  requestId  String
+  role       UserRoleCode
+  status     ReviewStatus @default(PENDING)
+  reviewerId String?
+  notes      String?
+  decidedAt  DateTime?
+  version    Int          @default(0)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  request  OrderChangeRequest @relation(fields: [requestId], references: [id])
+  reviewer User?              @relation("OrderChangeReviewer", fields: [reviewerId], references: [id])
+
+  @@unique([requestId, role])
+  @@index([role, status])
+  @@map("order_change_reviews")
+}
+
+// ===========================================================================
+// SLA ENGINE — rule dan instance versioned, tidak mengubah histori lama
+// ===========================================================================
+
+model SlaRule {
+  id               String        @id @default(cuid())
+  kode             String        @unique
+  nama             String
+  process          String
+  orderType        String?
+  targetMinutes    Int
+  startTrigger     String
+  stopTrigger      String
+  warningThreshold Int           @default(80)
+  escalationRule   String?
+  ownerRole        UserRoleCode?
+  workingCalendar  String        @default("BUSINESS")
+  active           Boolean       @default(true)
+  effectiveFrom    DateTime?
+  effectiveTo      DateTime?
+  version          Int           @default(1)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  instances SlaInstance[]
+
+  @@index([process, active])
+  @@index([effectiveFrom, effectiveTo])
+  @@map("sla_rules")
+}
+
+model SlaInstance {
+  id             String    @id @default(cuid())
+  ruleId         String
+  ruleVersion    Int
+  sourceEntitas  String
+  sourceId       String
+  taskId         String?   @unique
+  ownerId        String?
+  slaStart       DateTime
+  dueAt          DateTime
+  completedAt    DateTime?
+  elapsedMinutes Int?
+  status         SlaStatus @default(ON_TRACK)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  rule  SlaRule @relation(fields: [ruleId], references: [id])
+  task  Task?   @relation(fields: [taskId], references: [id])
+  owner User?   @relation("SlaOwner", fields: [ownerId], references: [id])
+
+  @@index([status, dueAt])
+  @@index([sourceEntitas, sourceId])
+  @@map("sla_instances")
+}
+
+model Delegation {
+  id             String   @id @default(cuid())
+  fromUserId     String
+  toUserId       String
+  scope          String
+  effectiveStart DateTime
+  effectiveEnd   DateTime
+  reason         String
+  isActive       Boolean  @default(true)
+  version        Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  fromUser User @relation("DelegationFrom", fields: [fromUserId], references: [id])
+  toUser   User @relation("DelegationTo", fields: [toUserId], references: [id])
+
+  @@index([fromUserId, effectiveStart, effectiveEnd])
+  @@index([toUserId, effectiveStart, effectiveEnd])
+  @@map("delegations")
 }
 
 // ===========================================================================

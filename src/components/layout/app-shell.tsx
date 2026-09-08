@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, BookOpen, BriefcaseBusiness, ClipboardCheck, ClipboardList, Database, Factory, HandCoins, Home, LogOut, PackageCheck, ReceiptText, Shield, ShoppingBag, Siren, SwatchBook, TabletSmartphone, Truck, Users, Warehouse } from "lucide-react";
+import { ArrowLeftRight, BarChart3, BookOpen, BriefcaseBusiness, ClipboardCheck, ClipboardList, Clock3, Database, Factory, HandCoins, Home, LogOut, PackageCheck, ReceiptText, Shield, ShoppingBag, Siren, SwatchBook, TabletSmartphone, Truck, Users, Warehouse } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { api } from "@/lib/client-api";
@@ -27,6 +27,8 @@ const nav = [
   { href: "/people", label: "People", icon: Users },
   { href: "/control-tower", label: "CEO Tower", icon: BarChart3 },
   { href: "/request-revision", label: "Request Revision", icon: ClipboardCheck },
+  { href: "/order-changes", label: "Change Request", icon: ArrowLeftRight },
+  { href: "/sla", label: "SLA & Delegation", icon: Clock3 },
   { href: "/tasks", label: "Task", icon: ClipboardList },
   { href: "/exceptions", label: "Exception", icon: Siren },
   { href: "/master-data", label: "Master Data", icon: Database },

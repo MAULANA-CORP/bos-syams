@@ -390,6 +390,62 @@ export const revisionUpdateSchema = z.object({
   reason: z.string().trim().min(1).optional(),
 });
 
+const internalReviewRole = z.enum(["CMO_MANAGER", "PRODUCTION_CONTROLLER", "CFO"]);
+
+export const orderChangeCreateSchema = z.object({
+  orderId: z.string().min(1),
+  jenis: z.enum(["CHANGE", "CANCELLATION"]),
+  alasan: z.string().trim().min(5).max(4000),
+  dampak: nullableString,
+  requestedChanges: z.record(z.unknown()).optional().nullable(),
+  disposition: nullableString,
+  financialTreatment: z.enum(["NONE", "CHARGE", "REFUND", "CREDIT", "TBD"]).optional().default("TBD"),
+  evidenceUrls: z.array(z.string().url()).default([]),
+  reviewRoles: z.array(internalReviewRole).min(1).max(3).default(["CMO_MANAGER", "PRODUCTION_CONTROLLER", "CFO"]),
+});
+
+export const orderChangeReviewSchema = z.object({
+  status: z.enum(["APPROVED", "REJECTED"]),
+  notes: z.string().trim().min(1).max(2000),
+  version: z.number().int().min(0),
+});
+
+export const orderChangeApplySchema = z.object({
+  version: z.number().int().min(0),
+  reason: z.string().trim().min(1),
+});
+
+export const slaRuleCreateSchema = z.object({
+  kode: z.string().trim().min(2).max(50),
+  nama: z.string().trim().min(2).max(160),
+  process: z.string().trim().min(1).max(80),
+  orderType: nullableString,
+  targetMinutes: z.coerce.number().int().positive(),
+  startTrigger: z.string().trim().min(1).max(160),
+  stopTrigger: z.string().trim().min(1).max(160),
+  warningThreshold: z.coerce.number().int().min(1).max(100).default(80),
+  escalationRule: nullableString,
+  ownerRole: z.string().trim().min(1).optional().nullable(),
+  workingCalendar: z.string().trim().min(1).default("BUSINESS"),
+  active: z.boolean().default(true),
+  effectiveFrom: dateString.optional().nullable(),
+  effectiveTo: dateString.optional().nullable(),
+});
+
+export const slaRuleUpdateSchema = slaRuleCreateSchema.partial().extend({
+  version: z.number().int().min(1),
+  reason: z.string().trim().min(1).optional(),
+});
+
+export const delegationCreateSchema = z.object({
+  fromUserId: z.string().min(1),
+  toUserId: z.string().min(1),
+  scope: z.string().trim().min(1).max(120),
+  effectiveStart: dateString,
+  effectiveEnd: dateString,
+  reason: z.string().trim().min(5).max(2000),
+});
+
 export const taskCreateSchema = z.object({
   sourceEntitas: z.string().trim().min(1),
   sourceId: z.string().trim().min(1),
@@ -400,6 +456,7 @@ export const taskCreateSchema = z.object({
   assigneeRole: nullableString,
   due: dateString.optional().nullable(),
   prioritas: z.coerce.number().int().min(1).max(5).default(3),
+  slaRuleId: nullableString,
 });
 
 export const taskUpdateSchema = z.object({

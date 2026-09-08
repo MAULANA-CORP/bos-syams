@@ -3,6 +3,7 @@ import { catatAudit } from "@/lib/audit";
 import { assertBusinessAuthority } from "@/lib/rbac";
 import { assertOptimisticVersion } from "@/lib/order-rules";
 import { toDate } from "@/lib/date";
+import { completeSlaForTask, createSlaInstanceForTask } from "@/lib/sla-service";
 import type { Actor } from "@/lib/domain-types";
 
 export async function listTasks() {
@@ -16,7 +17,9 @@ export async function createTask(input: Record<string, unknown>, actor: Actor, i
   await assertBusinessAuthority(actor, "TASK", "CREATE");
   const prisma = getPrisma();
   return prisma.$transaction(async (tx) => {
-    const task = await tx.task.create({ data: { ...input, due: toDate(input.due as string | null | undefined) } as never });
+    const { slaRuleId, ...taskInput } = input;
+    const task = await tx.task.create({ data: { ...taskInput, due: toDate(input.due as string | null | undefined) } as never });
+    if (slaRuleId) await createSlaInstanceForTask(tx, task, String(slaRuleId));
     await catatAudit({ entitasType: "Task", entitasId: task.id, aksi: "CREATE", newValue: task, actor, ipAddress }, tx);
     return task;
   });
@@ -39,6 +42,7 @@ export async function updateTask(id: string, input: Record<string, unknown>, act
         version: { increment: 1 },
       } as never,
     });
+    if (status === "DONE" || status === "CANCELLED") await completeSlaForTask(tx, id);
     await catatAudit({ entitasType: "Task", entitasId: id, aksi: "UPDATE", oldValue: current, newValue: task, reason: String(reason), actor, ipAddress }, tx);
     return task;
   });

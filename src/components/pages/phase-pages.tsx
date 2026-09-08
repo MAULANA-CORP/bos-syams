@@ -128,7 +128,7 @@ export function PricingPage() {
 
   return (
     <>
-      <PageHeader title="Pricing & Quotation" subtitle="Fase 2: HPP, markup, minimum price, quotation, dan gate harga sebelum order confirmed." />
+      <PageHeader title="Pricing & Quotation" subtitle="Finance menginput harga final manual. HPP + markup 30% hanya reference internal yang tetap configurable." />
       <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
         <div className="space-y-4">
           <Panel>
@@ -141,7 +141,7 @@ export function PricingPage() {
             </div>
             <FormGrid>
               <SearchableSelect
-                label="Markup mode"
+                label="Reference markup mode"
                 value={configForm.markupMode}
                 onChange={(v) => setConfigForm({ ...configForm, markupMode: v ?? "MARKUP_ON_COST" })}
                 options={[
@@ -149,8 +149,8 @@ export function PricingPage() {
                   { value: "MARGIN_ON_PRICE", label: "Margin on price", hint: "HPP / (1 - p)" },
                 ]}
               />
-              <TextInput type="number" placeholder="Markup percent" value={configForm.markupPercent} onChange={(e) => setConfigForm({ ...configForm, markupPercent: e.target.value })} />
-              <Button disabled={saveConfig.isPending} onClick={() => saveConfig.mutate()}><CheckCircle2 className="mr-2 h-4 w-4" />Kunci Config</Button>
+              <TextInput type="number" placeholder="Reference markup percent" value={configForm.markupPercent} onChange={(e) => setConfigForm({ ...configForm, markupPercent: e.target.value })} />
+              <Button disabled={saveConfig.isPending} onClick={() => saveConfig.mutate()}><CheckCircle2 className="mr-2 h-4 w-4" />Simpan Reference</Button>
             </FormGrid>
           </Panel>
 
@@ -184,7 +184,7 @@ export function PricingPage() {
               { key: "nomor", label: "Nomor" },
               { key: "status", label: "Status", render: (r) => <StatusBadge tone={r.status === "APPROVED" ? "good" : r.status === "REJECTED" ? "bad" : r.status === "DRAFT" ? "warn" : "neutral"}>{r.status}</StatusBadge> },
               { key: "estimatedHpp", label: "Est. HPP", render: (r) => money(r.estimatedHpp) },
-              { key: "minimumPrice", label: "Minimum", render: (r) => money(r.minimumPrice) },
+              { key: "minimumPrice", label: "Reference HPP + markup", render: (r) => money(r.minimumPrice) },
               { key: "offeredPrice", label: "Offer", render: (r) => money(r.offeredPrice) },
               { key: "validUntil", label: "Valid", render: (r) => formatTanggal(r.validUntil) },
               {

@@ -58,7 +58,7 @@ export async function createQuotation(input: AnyInput, actor: Actor, ipAddress?:
     const estimatedHpp = money(input.estimatedHpp);
     const markupPercent = money(input.markupPercent) ?? pricing.markupPercent;
     const minimumPrice = calculateMinimumPrice(estimatedHpp, markupPercent, pricing.mode);
-    const notes = [input.notes, minimumPrice === null ? "Pricing config/HPP belum lengkap; quotation hanya bisa draft." : null]
+    const notes = [input.notes, minimumPrice === null ? "Reference HPP + markup belum lengkap; harga final tetap diinput manual Finance." : "Reference HPP + markup tersimpan untuk pertimbangan Finance; harga final tetap manual."]
       .filter(Boolean)
       .join(" ");
 
@@ -95,20 +95,8 @@ export async function updateQuotationStatus(id: string, input: { status: string;
 
     if (input.status === "SENT" || input.status === "APPROVED") {
       if (current.offeredPrice === null) throw new DomainError("Offered price wajib diisi sebelum quotation dikirim", 409, "quotation_missing_price");
-      if (current.minimumPrice === null) throw new DomainError("Minimum price belum bisa dihitung. Isi pricing config/HPP dulu.", 409, "pricing_config_incomplete");
-      if (Number(current.offeredPrice) < Number(current.minimumPrice)) {
-        const approvedException = await tx.exceptionCase.count({
-          where: {
-            tipe: "PRICE_BELOW_MINIMUM",
-            status: "APPROVED",
-            sourceModul: "QUOTATION",
-            referensiId: id,
-          },
-        });
-        if (approvedException === 0) {
-          throw new DomainError("Offered price di bawah minimum price. Buat exception PRICE_BELOW_MINIMUM untuk approval CFO/CEO.", 409, "price_below_minimum");
-        }
-      }
+      // Owner menetapkan harga jual final manual oleh Finance. minimumPrice
+      // hanya disimpan sebagai reference HPP + markup, bukan gate otomatis.
     }
 
     if (input.status === "APPROVED" && !hasAnyRole(actor, ["CFO", "CEO"])) {

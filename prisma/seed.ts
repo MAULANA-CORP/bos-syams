@@ -12,7 +12,8 @@
  *
  * Yang TIDAK di-seed karena nilainya belum diberikan owner:
  *   size, garment type, warna, lokasi, carrier, supplier, material,
- *   reject category, payment term, process rate.
+ *   reject category, process rate. Payment term default owner di-seed,
+ *   sementara term khusus Buyer/Order tetap diisi saat konfigurasi.
  *
  * Aturan: jangan menambah data karangan ke file ini. Master data kosong adalah
  * kondisi yang benar sampai owner mengisi.
@@ -53,6 +54,7 @@ const MODUL_BOS = [
   "PROCUREMENT", "INVENTORY", "INVOICE", "PAYMENT", "SHIPMENT",
   "PORTAL", "CRM", "SAMPLE", "MAKLOON", "EMPLOYEE", "MANPOWER", "CONTROL_TOWER",
   "REVISION",
+  "ORDER_CHANGE", "SLA_RULE", "DELEGATION",
   "MASTER_DATA", "TASK", "EXCEPTION", "AUDIT", "USER", "PERMISSION",
 ] as const;
 
@@ -77,6 +79,7 @@ const MATRIKS: AturanRole[] = [
       PORTAL: ["VIEW"], CRM: ["VIEW"], SAMPLE: ["VIEW", "APPROVE"], MAKLOON: ["VIEW", "APPROVE", "OVERRIDE"],
       EMPLOYEE: ["VIEW"], MANPOWER: ["VIEW"], CONTROL_TOWER: ["VIEW"],
       REVISION: ["VIEW", "CREATE", "EDIT"],
+      ORDER_CHANGE: ["VIEW", "APPROVE", "EXECUTE"], SLA_RULE: ["VIEW", "CREATE", "EDIT"], DELEGATION: ["VIEW", "CREATE", "EDIT"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW"], AUDIT: ["VIEW"],
       EXCEPTION: ["VIEW", "APPROVE", "OVERRIDE"],
     },
@@ -96,6 +99,7 @@ const MATRIKS: AturanRole[] = [
       PORTAL: ["VIEW", "CREATE", "EDIT"], CRM: ["VIEW", "CREATE", "EDIT", "EXECUTE"], SAMPLE: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       MAKLOON: ["VIEW"],
       REVISION: ["VIEW", "CREATE", "EDIT"],
+      ORDER_CHANGE: ["VIEW", "CREATE", "EDIT"], SLA_RULE: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -110,6 +114,7 @@ const MATRIKS: AturanRole[] = [
       INVOICE: ["VIEW"], SHIPMENT: ["VIEW"],
       PORTAL: ["VIEW"], CRM: ["VIEW", "CREATE", "EDIT"], SAMPLE: ["VIEW", "CREATE", "EDIT"],
       REVISION: ["VIEW", "CREATE", "EDIT"],
+      ORDER_CHANGE: ["VIEW", "CREATE", "EDIT"], SLA_RULE: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
     },
   },
@@ -127,6 +132,7 @@ const MATRIKS: AturanRole[] = [
       SHIPMENT: ["VIEW"],
       SAMPLE: ["VIEW"], MAKLOON: ["VIEW", "CREATE", "EDIT", "EXECUTE"], MANPOWER: ["VIEW"],
       REVISION: ["VIEW", "CREATE", "EDIT"],
+      ORDER_CHANGE: ["VIEW", "APPROVE", "EXECUTE"], SLA_RULE: ["VIEW"],
       MASTER_DATA: ["VIEW"], TASK: ["VIEW", "CREATE", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -172,6 +178,7 @@ const MATRIKS: AturanRole[] = [
       SHIPMENT: ["VIEW", "APPROVE"],
       PORTAL: ["VIEW"], CRM: ["VIEW"], SAMPLE: ["VIEW", "APPROVE"], MAKLOON: ["VIEW", "CREATE", "EDIT", "APPROVE"],
       CONTROL_TOWER: ["VIEW"],
+      ORDER_CHANGE: ["VIEW", "APPROVE"], SLA_RULE: ["VIEW"],
       MASTER_DATA: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE", "APPROVE"],
@@ -184,6 +191,7 @@ const MATRIKS: AturanRole[] = [
       EMPLOYEE: ["VIEW", "CREATE", "EDIT"],
       MANPOWER: ["VIEW", "CREATE", "EDIT", "EXECUTE"],
       CONTROL_TOWER: ["VIEW"],
+      SLA_RULE: ["VIEW", "CREATE", "EDIT"],
       TASK: ["VIEW", "EDIT"],
       EXCEPTION: ["VIEW", "CREATE"],
     },
@@ -259,7 +267,7 @@ const AUTHORITY: { decisionType: string; approverRole: RoleCode }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// System config — placeholder blocker terbuka
+// System config — angka yang sudah dikonfirmasi owner diisi; sisanya tetap NULL.
 // value NULL berarti belum diputuskan owner. Kode WAJIB memeriksa NULL dan
 // menolak beroperasi, bukan memakai default diam-diam.
 // ---------------------------------------------------------------------------
@@ -270,12 +278,14 @@ const CONFIG: { key: string; tipe: string; deskripsi: string; qidRef: string; va
     tipe: "ENUM",
     deskripsi: "Cara menghitung harga minimum. MARKUP_ON_COST = HPP x (1+p). MARGIN_ON_PRICE = HPP / (1-p). PRI-002 dan Q3.3 belum menyebut yang mana.",
     qidRef: "B-01 / PRI-002 / Q3.3",
+    value: "MARKUP_ON_COST",
   },
   {
     key: "PRICING_MARKUP_PERCENT",
     tipe: "NUMBER",
-    deskripsi: "Persentase markup minimum. Dokumen menyebut 30, tapi tidak berguna sebelum PRICING_MARKUP_MODE ditentukan.",
+    deskripsi: "Acuan referensi internal Finance: HPP x 1,30. Harga jual final tetap manual dan configurable.",
     qidRef: "B-01 / PRI-002",
+    value: "30",
   },
   {
     key: "REVENUE_RECOGNITION_TRIGGER",
@@ -546,6 +556,28 @@ async function main() {
   const kosong = CONFIG.filter((c) => c.value === undefined).length;
   console.log(`  System config: ${CONFIG.length} kunci, ${kosong} masih kosong menunggu owner`);
 
+  await prisma.paymentTerm.upsert({
+    where: { kode: "DP50_BALANCE50" },
+    update: {
+      nama: "50% DP / 50% Balance",
+      dpPersen: 50,
+      dueBasis: "MILESTONE",
+      dpTrigger: "BEFORE_PRODUCTION_RELEASE",
+      balanceTrigger: "BEFORE_SHIPMENT_RELEASE",
+      keterangan: "Default operasional owner. Term khusus Buyer/Order tetap diperbolehkan.",
+    },
+    create: {
+      kode: "DP50_BALANCE50",
+      nama: "50% DP / 50% Balance",
+      dpPersen: 50,
+      dueBasis: "MILESTONE",
+      dpTrigger: "BEFORE_PRODUCTION_RELEASE",
+      balanceTrigger: "BEFORE_SHIPMENT_RELEASE",
+      keterangan: "Default operasional owner. Term khusus Buyer/Order tetap diperbolehkan.",
+    },
+  });
+  console.log("  Payment term default: DP50_BALANCE50 (50% DP / 50% balance milestone)");
+
   // --- User demo seluruh role internal Fase 1-7 ---
   for (const seedUser of SEEDED_USERS) {
     const password = process.env[seedUser.passwordEnv ?? ""] || seedUser.defaultPassword;
@@ -577,7 +609,7 @@ async function main() {
   console.log("Daftar login lengkap ada di menu Panduan > Role & Login.");
   console.log("Ganti password setelah login pertama.\n");
   console.log("Master data sengaja kosong: size, garment type, warna, lokasi,");
-  console.log("carrier, supplier, material, reject category, payment term, process rate.");
+  console.log("carrier, supplier, material, reject category, process rate.");
   console.log("Isi lewat menu Master Data setelah owner memberikan daftarnya.");
 }
 
