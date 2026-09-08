@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     assertCsrf(req);
     const input = await readJson(req, loginSchema);
     const ip = getClientIp(req) ?? "unknown";
-    const limited = checkLoginRateLimit(`${ip}:${input.username.toLowerCase()}`);
+    const limited = await checkLoginRateLimit(`${ip}:${input.username.toLowerCase()}`);
     if (limited) throw new DomainError(`Terlalu banyak percobaan login. Coba lagi ${limited} detik.`, 429, "rate_limited");
 
     const prisma = getPrisma();
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       throw new DomainError("Username atau password salah", 401, "invalid_credentials");
     }
 
-    clearLoginRateLimit(`${ip}:${input.username.toLowerCase()}`);
+    await clearLoginRateLimit(`${ip}:${input.username.toLowerCase()}`);
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     const actor: Actor = { id: user.id, nama: user.nama, username: user.username, roles: user.roles.map((r) => r.role as never), scopes: user.roles.map((r) => r.scope as never) };
     await catatAudit({ entitasType: "User", entitasId: user.id, aksi: "LOGIN", actor, ipAddress: ip });
