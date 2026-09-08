@@ -9,6 +9,7 @@ src/generated
 *.log
 .DS_Store
 coverage
+tsconfig.tsbuildinfo
 pnpm-lock.yaml
 pnpm-workspace.yaml
 .local-postgres/

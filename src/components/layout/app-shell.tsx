@@ -3,63 +3,54 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftRight, BarChart3, BookOpen, BriefcaseBusiness, ClipboardCheck, ClipboardList, Clock3, Database, Factory, HandCoins, Home, LogOut, Menu, PackageCheck, PanelLeftClose, PanelLeftOpen, ReceiptText, Shield, ShoppingBag, Siren, SwatchBook, TabletSmartphone, Truck, Users, Warehouse, X, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { ModuleCode, PermissionAction } from "@/lib/domain-types";
+import type { UserRoleCode } from "@/lib/domain-types";
 import { api } from "@/lib/client-api";
+import { NAVIGATION_POLICY, canAccessNavigationItem, formatRoleSummary, matchesNavigationPath, type NavigationPolicyItem, type PermissionSummary } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
-type NavigationItem = {
-  href: string;
-  label: string;
+type NavigationItem = NavigationPolicyItem & {
   icon: LucideIcon;
-  modules?: ModuleCode[];
 };
 
 type MeResponse = {
   nama: string;
   username: string;
-  roles: string[];
-  permissions: Array<{ modul: ModuleCode; aksi: PermissionAction }>;
+  roles: UserRoleCode[];
+  permissions: PermissionSummary[];
 };
 
-const nav: NavigationItem[] = [
-  { href: "/today", label: "TODAY", icon: Home },
-  { href: "/guide", label: "Panduan", icon: BookOpen },
-  { href: "/buyers", label: "Buyer", icon: Users, modules: ["BUYER"] },
-  { href: "/orders", label: "Order", icon: ShoppingBag, modules: ["ORDER"] },
-  { href: "/pricing", label: "Pricing", icon: ReceiptText, modules: ["QUOTATION"] },
-  { href: "/batches", label: "Batch", icon: Factory, modules: ["BATCH"] },
-  { href: "/production-flow", label: "Produksi", icon: PackageCheck, modules: ["PRODUCTION", "QC", "PACKING"] },
-  { href: "/inventory", label: "Inventory", icon: Warehouse, modules: ["PROCUREMENT", "INVENTORY"] },
-  { href: "/shipments", label: "Shipment", icon: Truck, modules: ["SHIPMENT"] },
-  { href: "/finance", label: "Finance", icon: HandCoins, modules: ["INVOICE", "PAYMENT"] },
-  { href: "/portal-admin", label: "Portal Admin", icon: TabletSmartphone, modules: ["PORTAL"] },
-  { href: "/crm", label: "CRM", icon: BriefcaseBusiness, modules: ["CRM"] },
-  { href: "/samples", label: "Sample", icon: SwatchBook, modules: ["SAMPLE"] },
-  { href: "/makloon", label: "Makloon", icon: Factory, modules: ["MAKLOON"] },
-  { href: "/people", label: "People", icon: Users, modules: ["EMPLOYEE", "MANPOWER"] },
-  { href: "/control-tower", label: "CEO Tower", icon: BarChart3, modules: ["CONTROL_TOWER"] },
-  { href: "/request-revision", label: "Request Revision", icon: ClipboardCheck, modules: ["REVISION"] },
-  { href: "/order-changes", label: "Change Request", icon: ArrowLeftRight, modules: ["ORDER_CHANGE"] },
-  { href: "/sla", label: "SLA & Delegation", icon: Clock3, modules: ["SLA_RULE", "DELEGATION"] },
-  { href: "/tasks", label: "Task", icon: ClipboardList, modules: ["TASK"] },
-  { href: "/exceptions", label: "Exception", icon: Siren, modules: ["EXCEPTION"] },
-  { href: "/master-data", label: "Master Data", icon: Database, modules: ["MASTER_DATA"] },
-  { href: "/admin", label: "Admin", icon: Shield, modules: ["USER", "PERMISSION"] },
-  { href: "/reports", label: "Dashboard", icon: BarChart3, modules: ["CONTROL_TOWER"] },
-];
+const navIcons: Record<string, LucideIcon> = {
+  "/today": Home,
+  "/guide": BookOpen,
+  "/buyers": Users,
+  "/orders": ShoppingBag,
+  "/pricing": ReceiptText,
+  "/batches": Factory,
+  "/production-flow": PackageCheck,
+  "/inventory": Warehouse,
+  "/shipments": Truck,
+  "/finance": HandCoins,
+  "/portal-admin": TabletSmartphone,
+  "/crm": BriefcaseBusiness,
+  "/samples": SwatchBook,
+  "/makloon": Factory,
+  "/people": Users,
+  "/control-tower": BarChart3,
+  "/request-revision": ClipboardCheck,
+  "/order-changes": ArrowLeftRight,
+  "/sla": Clock3,
+  "/tasks": ClipboardList,
+  "/exceptions": Siren,
+  "/master-data": Database,
+  "/admin": Shield,
+  "/reports": BarChart3,
+};
 
-function matchesPath(item: NavigationItem, pathname: string) {
-  return pathname === item.href || pathname.startsWith(`${item.href}/`);
-}
-
-function canAccess(item: NavigationItem, permissions: MeResponse["permissions"]) {
-  if (!item.modules) return true;
-  return item.modules.some((modul) => permissions.some((permission) => permission.modul === modul && permission.aksi === "VIEW"));
-}
+const nav: NavigationItem[] = NAVIGATION_POLICY.map((item) => ({ ...item, icon: navIcons[item.href] ?? Home }));
 
 function NavigationLinks({
   items,
@@ -75,7 +66,7 @@ function NavigationLinks({
   return (
     <nav aria-label="Navigasi utama" className="space-y-1 p-3">
       {items.map(({ href, label, icon: Icon }) => {
-        const active = matchesPath({ href, label, icon: Icon }, pathname);
+        const active = matchesNavigationPath({ href, label }, pathname);
         return (
           <Link
             key={href}
@@ -102,13 +93,16 @@ function NavigationLinks({
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const me = useQuery({ queryKey: ["me"], queryFn: () => api<MeResponse>("/api/auth/me") });
+  const me = useQuery({ queryKey: ["me"], queryFn: () => api<MeResponse>("/api/auth/me"), refetchOnMount: "always" });
   const permissions = useMemo(() => me.data?.permissions ?? [], [me.data]);
-  const visibleNav = useMemo(() => nav.filter((item) => canAccess(item, permissions)), [permissions]);
-  const currentItem = useMemo(() => nav.find((item) => matchesPath(item, pathname)), [pathname]);
-  const canAccessCurrentPage = !currentItem || canAccess(currentItem, permissions);
+  const roles = useMemo(() => me.data?.roles ?? [], [me.data]);
+  const visibleNav = useMemo(() => nav.filter((item) => item.showInNavigation !== false && canAccessNavigationItem(item, { roles, permissions })), [permissions, roles]);
+  const currentItem = useMemo(() => nav.find((item) => matchesNavigationPath(item, pathname)), [pathname]);
+  const canAccessCurrentPage = !currentItem || canAccessNavigationItem(currentItem, { roles, permissions });
+  const roleSummary = useMemo(() => formatRoleSummary(roles), [roles]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -132,6 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   async function logout() {
     await api("/api/auth/logout", { method: "POST", body: "{}" }).catch((error) => toast.error(error.message));
+    queryClient.clear();
     router.push("/login");
   }
 
@@ -162,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ) : (
             <div>
               <p className="text-sm font-semibold tracking-wide text-red-700 dark:text-red-300">BOS SYAMS</p>
-              <p className="text-xs text-muted">operating subledger</p>
+              <p className="text-xs text-muted">{roleSummary}</p>
             </div>
           )}
           <button
@@ -193,7 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </button>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase text-muted">Syams Garment Manufacturer</p>
-                <p className="truncate text-sm text-foreground">{me.data.nama}</p>
+                <p className="truncate text-sm text-foreground">{me.data.nama} · {roleSummary}</p>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -224,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex h-16 items-center justify-between border-b border-border px-5">
               <div>
                 <p className="text-sm font-semibold tracking-wide text-red-700 dark:text-red-300">BOS SYAMS</p>
-                <p className="text-xs text-muted">operating subledger</p>
+                <p className="text-xs text-muted">{roleSummary}</p>
               </div>
               <button
                 type="button"

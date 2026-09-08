@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { LockKeyhole } from "lucide-react";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -18,6 +19,7 @@ export default function LoginPage() {
 
 function LoginContent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const search = useSearchParams();
   const [username, setUsername] = React.useState("admin");
   const [password, setPassword] = React.useState("");
@@ -28,6 +30,7 @@ function LoginContent() {
     setLoading(true);
     try {
       await api("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
+      queryClient.clear();
       toast.success("Login berhasil");
       router.push(search.get("return_to") || "/today");
       router.refresh();
