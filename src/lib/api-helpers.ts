@@ -78,7 +78,13 @@ export function fail(error: unknown) {
   );
 }
 
+const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
+
 export async function readJson<T>(req: NextRequest, schema: z.ZodType<T>): Promise<T> {
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > MAX_BODY_BYTES) {
+    throw new DomainError("Request body terlalu besar (maks 2 MB)", 413, "payload_too_large");
+  }
   const json = await req.json().catch(() => ({}));
   return schema.parse(json);
 }
