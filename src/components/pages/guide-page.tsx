@@ -1,7 +1,7 @@
 "use client";
 
 import * as Tabs from "@radix-ui/react-tabs";
-import { BookOpen, CheckCircle2, CircleAlert, ClipboardList, LockKeyhole, Route, ShieldCheck, UsersRound } from "lucide-react";
+import { BadgeCheck, BookOpen, CheckCircle2, CircleAlert, ClipboardList, LockKeyhole, Route, ShieldCheck, UsersRound } from "lucide-react";
 import { PageHeader, Panel, StatusBadge } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const tabs = [
   { value: "input", label: "Cara Isi", icon: ClipboardList },
   { value: "roles", label: "Role & Login", icon: UsersRound },
   { value: "controls", label: "Kontrol", icon: ShieldCheck },
+  { value: "decisions", label: "Keputusan Owner", icon: BadgeCheck },
   { value: "next", label: "Fase Berikutnya", icon: BookOpen },
 ] as const;
 
@@ -23,13 +24,13 @@ const workflow = [
   {
     area: "CMO / Commercial",
     imageFlow: "Inquiry/order, breakdown article, harga, payment terms, konfirmasi order.",
-    appNow: "Order, article, size breakdown, buyer ownership, CRM pipeline, sample approval, SPK Release oleh CMO, dan Quotation gate sudah aktif.",
+    appNow: "Order, article, size breakdown, buyer ownership, CRM pipeline, sample approval, SPK Release oleh CMO, Quotation approval, dan Change Request sudah aktif.",
     status: "Aktif",
   },
   {
     area: "COO / Production",
     imageFlow: "Production planning, material requirement, penjadwalan, kapasitas, eksekusi, QC.",
-    appNow: "Batch planning, Batch Release, Production Handoff, discrepancy, QC Inspection, dan Makloon job sudah aktif.",
+    appNow: "Batch planning, Batch Release, Production Handoff, discrepancy, QC Inspection, Makloon job, impact review Change Request, dan SLA monitoring sudah aktif.",
     status: "Aktif",
   },
   {
@@ -53,14 +54,14 @@ const workflow = [
   {
     area: "Finance / CFO",
     imageFlow: "Invoice, payment, AR/AP, ledger, costing dan reporting.",
-    appNow: "Invoice, payment claim, verifikasi CFO, collection notes, dan status AR untuk shipment gate sudah aktif. Costing detail/ledger akuntansi penuh menyusul fase berikutnya.",
+    appNow: "Invoice, payment claim, verifikasi CFO, collection notes, status AR untuk shipment gate, manual final selling price, dan reference HPP x 1,30 sudah aktif. Revenue recognition trigger tetap TBD.",
     status: "Aktif",
   },
 ];
 
 const inputSteps = [
   "Login sesuai role, lalu cek TODAY untuk task dan exception yang perlu ditangani.",
-  "System Admin atau role berwenang mengisi Master Data: size, garment type, warna, lokasi, supplier, material, carrier, payment term, reject category, dan process rate.",
+  "System Admin atau role berwenang mengisi Master Data resmi: size, garment type, warna, lokasi, supplier, material, carrier, payment term, reject category, dan process rate. Jangan membuat data contoh seolah-olah data resmi.",
   "CMO membuat Buyer lebih dulu supaya order punya customer truth yang jelas.",
   "CMO membuat Order, mengisi article dan size breakdown, lalu lanjut SPK Release saat data wajib sudah lengkap.",
   "Production Controller membuat Batch dari article yang sudah siap produksi dan melakukan Batch Release.",
@@ -70,8 +71,10 @@ const inputSteps = [
   "CMO membuat Portal Account untuk buyer invite-only; buyer login di /portal/login untuk cek status, upload evidence payment, approve sample, dan kirim ticket.",
   "CMO mengelola CRM pipeline dan Sample Approval; Production/Warehouse mengelola Makloon jika proses keluar pabrik dibutuhkan.",
   "CHRO mengisi Employee dan Manpower Plan, lalu Owner melihat ringkasannya di CEO Control Tower.",
-  "Owner/CEO membuka Dashboard, Audit, dan Exception untuk melihat ringkasan, risiko, dan keputusan yang perlu approval, termasuk shipment outstanding.",
+  "Owner/CEO membuka Dashboard, Audit, Exception, Change Request, dan SLA & Delegation untuk melihat risiko, approval domain, breach SLA, dan delegasi aktif.",
   "CEO, CMO, dan COO dapat mengirim Request Revision ke developer; lampirkan screenshot, tulis checklist verifikasi, lalu pindahkan ke Done setelah perbaikan dicek.",
+  "Perubahan Order setelah release tidak boleh diedit langsung. Ajukan Change Request atau Cancellation, isi dampak customer/produksi/finance, disposition WIP, perlakuan finansial, reviewer domain, dan evidence.",
+  "Buat SLA Rule di menu SLA & Delegation dengan trigger, target durasi, warning threshold, escalation, owner role, calendar, dan effective date. Hubungkan rule ke Task saat membuat task bila diperlukan.",
 ];
 
 const roles = [
@@ -80,28 +83,28 @@ const roles = [
     password: "owner123",
     role: "CEO",
     scope: "ALL_COMPANY",
-    akses: "Lihat seluruh operasi, CEO Control Tower, Request Revision, approval exception owner, override tertentu, dashboard CEO.",
+    akses: "Lihat seluruh operasi, CEO Control Tower, Request Revision, Change Request, SLA/Delegation, approval exception owner, dan authority khusus yang typed.",
   },
   {
     username: "cmo",
     password: "cmo123",
     role: "CMO_MANAGER",
     scope: "DEPARTMENT",
-    akses: "Buyer, order, article, quotation, CRM, sample, portal account, Request Revision, shipment view/create, SPK Release, task commercial, exception commercial.",
+    akses: "Buyer, order, article, quotation, CRM, sample, portal account, Request Revision, Change Request create/edit, shipment view/create, SPK Release, task commercial, exception commercial.",
   },
   {
     username: "cmo_support",
     password: "support123",
     role: "CMO_SUPPORT",
     scope: "TEAM",
-    akses: "Bantu input buyer, CRM, sample, Request Revision, lihat order/article/invoice/shipment, buat dan update task commercial.",
+    akses: "Bantu input buyer, CRM, sample, Request Revision, Change Request create/edit, lihat order/article/invoice/shipment, buat dan update task commercial.",
   },
   {
     username: "coo",
     password: "coo123",
     role: "PRODUCTION_CONTROLLER",
     scope: "PRODUCTION",
-    akses: "Planning batch, edit batch, Batch Release, Makloon job, Request Revision, manpower view, exception produksi.",
+    akses: "Planning batch, edit batch, Batch Release, Makloon job, Request Revision, Change Request review/apply, SLA view, manpower view, exception produksi.",
   },
   {
     username: "production",
@@ -129,14 +132,14 @@ const roles = [
     password: "cfo123",
     role: "CFO",
     scope: "FINANCE",
-    akses: "Invoice, payment claim, payment verify/reject, collection notes, makloon cost, field sensitif HPP/cost, buyer/order finance fields, exception pricing/finance.",
+    akses: "Invoice, payment claim, payment verify/reject, collection notes, makloon cost, field sensitif HPP/cost, final selling price, Change Request financial review, buyer/order finance fields, exception pricing/finance.",
   },
   {
     username: "chro",
     password: "chro123",
     role: "CHRO",
     scope: "PEOPLE",
-    akses: "Employee data, manpower planning, task people, exception people.",
+    akses: "Employee data, manpower planning, SLA Rule configuration, task people, exception people.",
   },
   {
     username: "admin",
@@ -173,12 +176,29 @@ const controls = [
   },
   {
     title: "Pricing gate",
-    body: "Konfirmasi order ditahan kalau konfigurasi pricing minimum belum diputuskan, sehingga sistem tidak memakai angka asumsi diam-diam.",
+    body: "Final selling price diinput manual oleh Finance/CFO. HPP x 1,30 hanya reference configurable, bukan auto-pricing dan bukan generic override.",
   },
   {
     title: "Exception engine",
     body: "Keputusan lintas divisi dibuat sebagai exception dengan tipe keputusan dan approver yang jelas.",
   },
+  {
+    title: "Change Request & cancellation",
+    body: "Perubahan setelah release memakai approval domain, versioning, evidence, dan disposition. Cancellation tidak menghapus transaksi, WIP, atau jejak finansial.",
+  },
+  {
+    title: "SLA engine",
+    body: "Status SLA dihitung ON_TRACK, WARNING, OVERDUE, atau COMPLETED. Breach tidak otomatis membuat CEO Exception.",
+  },
+];
+
+const ownerDecisions = [
+  ["Sudah dikunci", "Harga jual final manual oleh Finance/CFO; HPP x 1,30 menjadi reference internal yang configurable."],
+  ["Sudah dikunci", "Payment term default 50% DP sebelum Production Release dan 50% balance sebelum Shipment Release. Term Buyer/Order dapat berbeda."],
+  ["Sudah dikunci", "Change Request dan cancellation wajib impact review; histori versi, evidence, disposition WIP, dan perlakuan finansial dipertahankan."],
+  ["Sudah dikunci", "Batch tidak boleh merge lintas Article; split, rework, dan replacement memakai lineage parent-child."],
+  ["Sudah dikunci", "SLA Rule configurable dan versioned, terhubung ke Task Engine, Notification, Morning Priority, dan Dashboard."],
+  ["Masih TBD", "Trigger revenue recognition, authority threshold, master data resmi, dan target go-live belum diisi sampai owner memberikan keputusan."],
 ];
 
 const nextPhases = [
@@ -314,6 +334,23 @@ export function GuidePage() {
                     <h3 className="font-semibold text-foreground">{control.title}</h3>
                   </div>
                   <p className="mt-2 text-sm text-muted">{control.body}</p>
+                </div>
+              ))}
+            </div>
+          </Panel>
+        </Tabs.Content>
+
+        <Tabs.Content value="decisions">
+          <Panel className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">Keputusan owner yang sudah diterapkan</h2>
+              <p className="mt-1 text-sm text-muted">Item bertanda TBD tetap configurable dan tidak diisi dengan asumsi bisnis.</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {ownerDecisions.map(([status, body]) => (
+                <div key={body} className="rounded-md border border-border bg-background p-4">
+                  <StatusBadge tone={status === "Sudah dikunci" ? "good" : "warn"}>{status}</StatusBadge>
+                  <p className="mt-3 text-sm text-foreground">{body}</p>
                 </div>
               ))}
             </div>

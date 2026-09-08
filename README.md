@@ -1,6 +1,6 @@
 # BOS Syams
 
-Business Operating System untuk Syams Garment Manufacturer. Implementasi ini menuntaskan Fase 1 PRD dan mulai menjalankan Fase 2-7: pondasi auth, RBAC, audit trail, typed exception, task engine, core backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, master data, Pricing & Quotation, Production Handoff, QC Inspection, Packing, Inventory Ledger, PR -> PO -> GR, Stock Opname, Invoice, Payment, Shipment Gate, Customer Portal, CRM Pipeline, Sample Approval, Makloon, Employee, Manpower Plan, CEO Control Tower, shell aplikasi, dan dokumen deploy.
+Business Operating System untuk Syams Garment Manufacturer. App mencakup backbone Buyer -> Order -> Article -> Size Breakdown -> Batch, RBAC, audit trail, task engine, master data, Pricing & Quotation, Production Handoff, QC Inspection, Packing, Inventory Ledger, PR -> PO -> GR, Stock Opname, Invoice, Payment, Shipment Gate, Customer Portal, CRM Pipeline, Sample Approval, Makloon, Employee, Manpower Plan, CEO Control Tower, Request Revision, Change Request, SLA Rule Engine, Delegation, dan dokumen deploy.
 
 ## Stack
 
@@ -33,7 +33,7 @@ Untuk development cepat dengan Docker:
 docker compose up -d
 ```
 
-Repo ini sudah menyediakan `.env.local` development yang mengarah ke `localhost:54320`.
+Repo ini menyediakan `.env.local` development yang mengarah ke `localhost:54320`. Untuk EasyPanel, gunakan host internal PostgreSQL seperti `client_bos-syam-db`, bukan `localhost` atau alamat publik.
 
 3. Generate Prisma, migrate, dan seed:
 
@@ -69,7 +69,7 @@ Panduan workflow, urutan input, dan penjelasan role ada di menu `/guide`.
 
 Confirm Order memakai gate pricing/CFO approval. Order baru bisa `CONFIRMED` setelah ada Quotation `APPROVED` untuk order atau seluruh article terkait. Kalau pricing config/HPP belum lengkap, sistem tetap mengembalikan blocker `pricing_gate_blocked` atau `pricing_config_incomplete` dan mencatat percobaan confirm ke audit trail.
 
-Fase 2 aktif di `/pricing`: Quotation draft, minimum price, offered price, send, approve CFO/CEO, dan guard harga di bawah minimum.
+Fase 2 aktif di `/pricing`: Quotation draft, estimasi HPP, reference markup configurable (default owner: HPP x 1,30), final selling price manual oleh Finance/CFO, send, dan approval CFO/CEO. Reference markup bukan auto-pricing dan bukan auto-override harga final.
 
 Fase 3 aktif di `/production-flow`: Production Handoff dengan discrepancy, QC Inspection dengan validasi `inspected = pass + reject`, dan Packing yang hanya boleh dibuat setelah QC `PASS`.
 
@@ -83,7 +83,11 @@ Fase 7 aktif di `/crm`, `/samples`, `/makloon`, `/people`, dan `/control-tower`:
 
 Request Revision aktif di `/request-revision` untuk CEO/Owner, CMO Manager, CMO Support, dan COO/Production Controller. Request mendukung checklist verifikasi, lampiran gambar, paste screenshot dari clipboard, dan filter `Belum diperbaiki` / `Done`.
 
-Master data seperti size, garment type, color, location, carrier, supplier, material, payment term, dan process rate sengaja tidak diisi data karangan. Isi lewat database/menu Master Data setelah owner memberi daftar resmi.
+Owner workflow aktif di `/order-changes`: perubahan atau cancellation setelah release memakai impact review CMO/COO/CFO, versioning, disposition WIP/material, financial treatment, evidence, dan apply terkontrol. CEO hanya menjadi authority khusus sesuai keputusan typed, bukan generic override.
+
+SLA dan delegasi aktif di `/sla`: SLA Rule memiliki target duration, trigger start/stop, warning threshold, owner role, escalation, working calendar, effective dates, dan version. Task dapat membuat SLA instance; status instance ON_TRACK/WARNING/OVERDUE/COMPLETED. Delegation menyimpan user asal/tujuan, scope, periode, alasan, status aktif, dan audit trail.
+
+Master data aktual seperti size, garment type, color, location, carrier, supplier, material, reject category, dan process rate sengaja tidak diisi data karangan. Payment term default owner `DP50_BALANCE50` sudah tersedia sebagai 50% DP sebelum Production Release dan 50% balance sebelum Shipment Release; term Buyer/Order tetap configurable. Isi master resmi lewat menu Master Data setelah owner memberikan daftarnya.
 
 ## Verifikasi
 
