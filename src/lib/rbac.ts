@@ -39,7 +39,7 @@ export async function listAllowedPermissions(actor: Actor): Promise<Array<{ modu
   if (actor.roles.length === 0) return [];
 
   const prisma = getPrisma();
-  return prisma.permission.findMany({
+  const permissions = await prisma.permission.findMany({
     where: {
       role: { in: actor.roles },
       allowed: true,
@@ -50,6 +50,10 @@ export async function listAllowedPermissions(actor: Actor): Promise<Array<{ modu
     },
     distinct: ["modul", "aksi"],
   });
+  return permissions.map(({ modul, aksi }) => ({
+    modul: modul as ModuleCode,
+    aksi: aksi as PermissionAction,
+  }));
 }
 
 export async function assertPermission(actor: Actor, modul: ModuleCode, aksi: PermissionAction) {
