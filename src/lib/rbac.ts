@@ -35,6 +35,23 @@ export async function hasPermission(actor: Actor, modul: ModuleCode, aksi: Permi
   return count > 0;
 }
 
+export async function listAllowedPermissions(actor: Actor): Promise<Array<{ modul: ModuleCode; aksi: PermissionAction }>> {
+  if (actor.roles.length === 0) return [];
+
+  const prisma = getPrisma();
+  return prisma.permission.findMany({
+    where: {
+      role: { in: actor.roles },
+      allowed: true,
+    },
+    select: {
+      modul: true,
+      aksi: true,
+    },
+    distinct: ["modul", "aksi"],
+  });
+}
+
 export async function assertPermission(actor: Actor, modul: ModuleCode, aksi: PermissionAction) {
   const allowed = await hasPermission(actor, modul, aksi);
   if (!allowed) {
